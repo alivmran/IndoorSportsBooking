@@ -7,8 +7,13 @@ const courtSchema = mongoose.Schema({
     required: true, 
     enum: ['Padel', 'Futsal', 'Cricket'] 
   }, 
-  pricePerHour: { type: Number, required: true },
+  location: { type: String, default: 'Karachi, Pakistan' }, // New
+  googleMapLink: { type: String }, // New
+  pricePerHour: { type: Number, required: true }, // Weekday Price
+  priceWeekend: { type: Number }, // New: Weekend Price
   description: { type: String },
+  images: [{ type: String }], 
+  amenities: [{ type: String }], 
 }, { timestamps: true });
 
 module.exports = mongoose.model('Court', courtSchema);

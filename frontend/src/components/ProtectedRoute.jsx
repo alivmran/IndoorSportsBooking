@@ -6,7 +6,8 @@ const ProtectedRoute = ({ children }) => {
   const { user } = useContext(AuthContext);
 
   if (!user) {
-    return <Navigate to="/" replace />;
+    // Redirect to Login instead of Landing page
+    return <Navigate to="/login" replace />;
   }
   return children;
 };

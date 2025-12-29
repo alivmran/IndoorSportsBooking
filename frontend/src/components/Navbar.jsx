@@ -13,18 +13,33 @@ const Navbar = () => {
 
   return (
     <nav className="navbar">
-      <div className="logo-container">
+      <div className="logo-container" onClick={() => navigate('/')}>
         <img src="/Artboard1.png" alt="Logo" className="logo-img" />
         <span className="logo-text">SportsBooking</span>
       </div>
+      
       <div className="links">
-        {user && (
+        {/* THIS IS THE BROWSE COURTS LINK */}
+        <Link to="/courts" className="nav-action">Browse Courts</Link>
+
+        {user ? (
           <>
-            <Link to="/dashboard">Dashboard</Link>
-            {!user.isAdmin && <Link to="/mybookings">My Bookings</Link>}
-            {user.isAdmin && <Link to="/admin/bookings">Admin Requests</Link>}
+            {!user.isAdmin && (
+              <>
+                <Link to="/find-team" className="nav-action">Find A Team</Link>
+                <Link to="/profile" className="nav-action">Profile</Link>
+              </>
+            )}
+            {user.isAdmin && (
+              <>
+                <Link to="/admin/bookings" className="nav-action">Manage Bookings</Link>
+                <span className="admin-badge">Admin</span>
+              </>
+            )}
             <button onClick={handleLogout}>Logout</button>
           </>
+        ) : (
+           <Link to="/login" className="login-btn">Login</Link>
         )}
       </div>
     </nav>

@@ -1,4 +1,5 @@
 import { useEffect, useState, useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
 import API from '../api/axios';
 import AuthContext from '../context/AuthContext';
 import { toast } from 'react-toastify';
@@ -6,19 +7,18 @@ import { toast } from 'react-toastify';
 const Home = () => {
   const [courts, setCourts] = useState([]);
   const { user } = useContext(AuthContext);
-  
-  const [selectedCourt, setSelectedCourt] = useState(null);
-  const [date, setDate] = useState('');
-  const [startTime, setStartTime] = useState('');
-  const [endTime, setEndTime] = useState('');
+  const navigate = useNavigate();
 
+  // Admin State
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [isEditing, setIsEditing] = useState(null);
   const [courtForm, setCourtForm] = useState({ 
     name: '', 
     sportType: 'Padel', 
     pricePerHour: '', 
-    description: '' 
+    priceWeekend: '', 
+    description: '',
+    location: '' 
   });
 
   const fetchCourts = async () => {
@@ -34,26 +34,8 @@ const Home = () => {
     fetchCourts();
   }, []);
 
-  const handleBooking = async (e) => {
-    e.preventDefault();
-    try {
-      await API.post('/bookings', {
-        courtId: selectedCourt,
-        date,
-        startTime,
-        endTime
-      });
-      toast.success('Booking Request Sent!');
-      setSelectedCourt(null);
-      setDate('');
-      setStartTime('');
-      setEndTime('');
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Booking Failed');
-    }
-  };
-
-  const handleDeleteCourt = async (id) => {
+  const handleDeleteCourt = async (e, id) => {
+    e.stopPropagation(); // Prevent navigating to details
     if(window.confirm('Delete court?')){
         try {
             await API.delete(`/courts/${id}`);
@@ -83,17 +65,20 @@ const Home = () => {
   };
 
   const openAddModal = () => {
-      setCourtForm({ name: '', sportType: 'Padel', pricePerHour: '', description: '' });
+      setCourtForm({ name: '', sportType: 'Padel', pricePerHour: '', priceWeekend: '', description: '', location: '' });
       setIsEditing(null);
       setShowAdminModal(true);
   };
 
-  const openEditModal = (court) => {
+  const openEditModal = (e, court) => {
+      e.stopPropagation(); // Prevent navigating to details
       setCourtForm({
           name: court.name,
           sportType: court.sportType,
           pricePerHour: court.pricePerHour,
-          description: court.description
+          priceWeekend: court.priceWeekend || '',
+          description: court.description,
+          location: court.location || ''
       });
       setIsEditing(court._id);
       setShowAdminModal(true);
@@ -108,63 +93,48 @@ const Home = () => {
     <div className="page-container">
       <div className="header-section">
         <h1 className="page-title">Available Courts</h1>
-        {user.isAdmin && (
+        {/* Safe check for admin user */}
+        {user?.isAdmin && (
             <button className="add-btn" onClick={openAddModal}>+ Add New Court</button>
         )}
       </div>
 
       <div className="courts-grid">
         {courts.map((court) => (
-          <div key={court._id} className="card">
+          <div 
+            key={court._id} 
+            className="card" 
+            onClick={() => navigate(`/courts/${court._id}`)} 
+            style={{cursor: 'pointer'}}
+          >
             <div className="card-header">
                 <h3>{court.name}</h3>
                 <span className="badge">{court.sportType}</span>
             </div>
             <div className="card-body">
+                {court.images && court.images.length > 0 ? (
+                  <img src={court.images[0]} alt={court.name} className="court-thumb"/>
+                ) : (
+                  <div className="placeholder-img">No Image</div>
+                )}
+                
+                <p className="location-tag">📍 {court.location || 'Karachi'}</p>
                 <p className="price">${court.pricePerHour} <span className="per-hr">/ hour</span></p>
-                <p className="desc">{court.description}</p>
+                <p className="desc">{court.description?.substring(0, 60)}...</p>
             </div>
             <div className="card-footer">
-                {user.isAdmin ? (
+                {user?.isAdmin ? (
                     <>
-                        <button onClick={() => openEditModal(court)} className="edit-btn">Edit</button>
-                        <button onClick={() => handleDeleteCourt(court._id)} className="delete-btn">Delete</button>
+                        <button onClick={(e) => openEditModal(e, court)} className="edit-btn">Edit</button>
+                        <button onClick={(e) => handleDeleteCourt(e, court._id)} className="delete-btn">Delete</button>
                     </>
                 ) : (
-                    <button className="book-btn" onClick={() => setSelectedCourt(court._id)}>Book Now</button>
+                    <button className="book-btn">View Details</button>
                 )}
             </div>
           </div>
         ))}
       </div>
-
-      {selectedCourt && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <h3>Request Booking</h3>
-            <form onSubmit={handleBooking}>
-              <div className="form-group">
-                  <label>Date</label>
-                  <input type="date" value={date} onChange={e => setDate(e.target.value)} required />
-              </div>
-              <div className="form-row">
-                  <div className="form-group">
-                      <label>Start Time</label>
-                      <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} required />
-                  </div>
-                  <div className="form-group">
-                      <label>End Time</label>
-                      <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} required />
-                  </div>
-              </div>
-              <div className="modal-actions">
-                  <button type="submit" className="confirm-btn">Send Request</button>
-                  <button type="button" onClick={() => setSelectedCourt(null)} className="cancel-btn">Cancel</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {showAdminModal && (
         <div className="modal-overlay">
@@ -185,8 +155,18 @@ const Home = () => {
                         </select>
                     </div>
                     <div className="form-group">
-                        <label>Price ($/hr)</label>
+                        <label>Location</label>
+                         <input value={courtForm.location} onChange={e=>setCourtForm({...courtForm, location: e.target.value})} />
+                    </div>
+                </div>
+                <div className="form-row">
+                     <div className="form-group">
+                        <label>Price (Weekday)</label>
                         <input type="number" value={courtForm.pricePerHour} onChange={e=>setCourtForm({...courtForm, pricePerHour: e.target.value})} required />
+                    </div>
+                    <div className="form-group">
+                        <label>Price (Weekend)</label>
+                        <input type="number" value={courtForm.priceWeekend} onChange={e=>setCourtForm({...courtForm, priceWeekend: e.target.value})} />
                     </div>
                 </div>
                 <div className="form-group">

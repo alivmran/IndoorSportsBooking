@@ -3,6 +3,39 @@ const router = express.Router();
 const Booking = require('../models/Booking');
 const { protect, admin } = require('../middleware/authMiddleware');
 
+router.post('/block', protect, admin, async (req, res, next) => {
+  try {
+    const { courtId, date, startTime, endTime } = req.body;
+
+    const existingApproved = await Booking.findOne({
+      court: courtId,
+      date: date,
+      startTime: startTime,
+      status: 'Approved'
+    });
+
+    if (existingApproved) {
+      res.status(400);
+      throw new Error('Slot already occupied.');
+    }
+
+    const booking = new Booking({
+      user: req.user._id, 
+      court: courtId,
+      date,
+      startTime,
+      endTime,
+      status: 'Approved' 
+    });
+
+    await booking.save();
+    res.status(201).json({ message: 'Time slot blocked successfully' });
+
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.post('/', protect, async (req, res, next) => {
   try {
     const { courtId, date, startTime, endTime } = req.body;
