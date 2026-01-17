@@ -11,6 +11,7 @@ const courtRoutes = require('./routes/courtRoutes');
 const bookingRoutes = require('./routes/bookingRoutes');
 const teamRoutes = require('./routes/teamRoutes');
 const matchRoutes = require('./routes/MatchRoutes');
+const managerRoutes = require('./routes/managerRoutes');
 
 dotenv.config();
 
@@ -24,6 +25,7 @@ app.use(cors());
 app.use(express.json()); 
 
 app.use('/api/auth', authRoutes);
+app.use('/api/manager', managerRoutes);
 app.use('/api/courts', courtRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/teams', teamRoutes);

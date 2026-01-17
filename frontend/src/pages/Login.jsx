@@ -11,7 +11,7 @@ const Login = () => {
 
   useEffect(() => {
     if (user) {
-      navigate('/dashboard');
+      navigate('/');
     }
   }, [user, navigate]);
 
@@ -25,28 +25,32 @@ const Login = () => {
   };
 
   return (
-    <div className="form-container">
-      <h2>Login</h2>
-      <form onSubmit={handleSubmit}>
-        <input 
-          type="email" 
-          placeholder="Email" 
-          value={email} 
-          onChange={(e) => setEmail(e.target.value)} 
-          required 
-        />
-        <input 
-          type="password" 
-          placeholder="Password" 
-          value={password} 
-          onChange={(e) => setPassword(e.target.value)} 
-          required 
-        />
-        <button type="submit">Login</button>
-      </form>
-      <p style={{marginTop: '15px', textAlign: 'center'}}>
-        New user? <Link to="/register">Register here</Link>
-      </p>
+    <div className="page-container">
+      <div className="form-container">
+        <h2>Login</h2>
+        <form onSubmit={handleSubmit}>
+          <input 
+            type="email" 
+            placeholder="Email" 
+            value={email} 
+            onChange={(e) => setEmail(e.target.value)} 
+            required 
+          />
+          <input 
+            type="password" 
+            placeholder="Password" 
+            value={password} 
+            onChange={(e) => setPassword(e.target.value)} 
+            required 
+          />
+          <button type="submit">Login</button>
+        </form>
+        
+        {/* Updated to match Register style */}
+        <p className="form-footer-text">
+          New user? <Link to="/register" className="form-link">Register here</Link>
+        </p>
+      </div>
     </div>
   );
 };

@@ -7,6 +7,7 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.0.1",
     "multer": "^2.0.2",
+    "nodemon": "^3.1.11",
     "xlsx": "^0.18.5"
   },
   "name": "backend",
@@ -15,7 +16,8 @@
   "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "nodemon index.js"
   },
   "keywords": [],
   "author": "",

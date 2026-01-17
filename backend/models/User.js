@@ -5,13 +5,18 @@ const userSchema = mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  isAdmin: { type: Boolean, required: true, default: false },
+  isAdmin: { type: Boolean, default: false }, 
+  role: { 
+    type: String, 
+    enum: ['user', 'manager', 'admin'], 
+    default: 'user' 
+  },
+  // If manager, which court do they manage?
+  managedCourt: { type: mongoose.Schema.Types.ObjectId, ref: 'Court' } 
 }, { timestamps: true });
 
 userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) {
-    next();
-  }
+  if (!this.isModified('password')) next();
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
 });

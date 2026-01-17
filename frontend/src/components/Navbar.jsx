@@ -19,27 +19,27 @@ const Navbar = () => {
       </div>
       
       <div className="links">
-        {/* THIS IS THE BROWSE COURTS LINK */}
         <Link to="/courts" className="nav-action">Browse Courts</Link>
 
         {user ? (
           <>
             {!user.isAdmin && (
               <>
-                <Link to="/find-team" className="nav-action">Find A Team</Link>
-                <Link to="/profile" className="nav-action">Profile</Link>
+                {/* Changed to Find A Match */}
+                <Link to="/find-team" className="nav-action">Find A Match</Link>
+                <Link to="/profile" className="nav-action">My Profile</Link>
               </>
             )}
             {user.isAdmin && (
               <>
                 <Link to="/admin/bookings" className="nav-action">Manage Bookings</Link>
-                <span className="admin-badge">Admin</span>
+                <span className="badge" style={{background:'#ef4444', color:'white'}}>Admin</span>
               </>
             )}
             <button onClick={handleLogout}>Logout</button>
           </>
         ) : (
-           <Link to="/login" className="login-btn">Login</Link>
+           <Link to="/login" style={{color:'var(--primary-color)', fontWeight:'600', textDecoration:'none'}}>Login</Link>
         )}
       </div>
     </nav>
