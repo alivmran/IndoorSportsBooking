@@ -1,17 +1,30 @@
 const express = require('express');
 const router = express.Router();
 const Booking = require('../models/Booking');
-const { protect, admin } = require('../middleware/authMiddleware');
+const Court = require('../models/Court');
+const { protect, admin, manager } = require('../middleware/authMiddleware');
 
-router.post('/block', protect, admin, async (req, res, next) => {
+// @desc    Block a Time Slot (Manual Block)
+// @access  Manager (Own Court) or Admin (Any Court)
+router.post('/block', protect, manager, async (req, res, next) => {
   try {
     const { courtId, date, startTime, endTime } = req.body;
 
+    // 1. Permission Check: If Manager, ensure they own this court
+    if (req.user.role === 'manager') {
+        const court = await Court.findById(courtId);
+        if (!court || court.manager.toString() !== req.user._id.toString()) {
+            res.status(401);
+            throw new Error('Not authorized to block this court');
+        }
+    }
+
+    // 2. Check for Conflicts (Approved or ManualBlock)
     const existingApproved = await Booking.findOne({
       court: courtId,
       date: date,
       startTime: startTime,
-      status: 'Approved'
+      status: { $ne: 'Rejected' } // Check anything NOT rejected (Pending/Approved)
     });
 
     if (existingApproved) {
@@ -19,13 +32,16 @@ router.post('/block', protect, admin, async (req, res, next) => {
       throw new Error('Slot already occupied.');
     }
 
+    // 3. Create Block
     const booking = new Booking({
       user: req.user._id, 
       court: courtId,
       date,
       startTime,
       endTime,
-      status: 'Approved' 
+      status: 'Approved',
+      type: 'ManualBlock', // Important for Analytics
+      totalPrice: 0 // Blocks have no revenue
     });
 
     await booking.save();
@@ -36,20 +52,23 @@ router.post('/block', protect, admin, async (req, res, next) => {
   }
 });
 
+// @desc    Create Online Booking
+// @access  User
 router.post('/', protect, async (req, res, next) => {
   try {
-    const { courtId, date, startTime, endTime } = req.body;
+    const { courtId, date, startTime, endTime, totalPrice } = req.body;
     
+    // Check conflicts (Approved or Pending or ManualBlock)
     const existingApproved = await Booking.findOne({
       court: courtId,
       date: date,
       startTime: startTime,
-      status: 'Approved'
+      status: { $ne: 'Rejected' }
     });
 
     if (existingApproved) {
       res.status(400);
-      throw new Error('Slot already booked and approved.');
+      throw new Error('Slot is not available.');
     }
 
     const booking = new Booking({
@@ -58,7 +77,9 @@ router.post('/', protect, async (req, res, next) => {
       date,
       startTime,
       endTime,
-      status: 'Pending'
+      status: 'Pending',
+      type: 'Online',
+      totalPrice: totalPrice || 0
     });
 
     const createdBooking = await booking.save();
@@ -68,74 +89,131 @@ router.post('/', protect, async (req, res, next) => {
   }
 });
 
+// @desc    Get MY Bookings
+// @access  User
 router.get('/mybookings', protect, async (req, res, next) => {
   try {
-    const bookings = await Booking.find({ user: req.user._id }).populate('court', 'name sportType');
+    const bookings = await Booking.find({ user: req.user._id })
+        .populate('court', 'name sportType location')
+        .sort({ date: -1 }); // Newest first
     res.json(bookings);
   } catch (error) {
     next(error);
   }
 });
 
+// @desc    Update Booking (Reschedule)
+// @access  User
 router.put('/:id', protect, async (req, res, next) => {
   try {
     const booking = await Booking.findById(req.params.id);
     if(booking){
         if(booking.user.toString() !== req.user._id.toString()){
-            res.status(401);
-            throw new Error('Not authorized');
+            res.status(401); throw new Error('Not authorized');
         }
-        booking.date = req.body.date || booking.date;
-        booking.startTime = req.body.startTime || booking.startTime;
+
+        const newDate = req.body.date || booking.date;
+        const newStart = req.body.startTime || booking.startTime;
+
+        // FIXED: Check conflict for the NEW time
+        const conflict = await Booking.findOne({
+            court: booking.court,
+            date: newDate,
+            startTime: newStart,
+            status: { $ne: 'Rejected' },
+            _id: { $ne: booking._id } // Exclude self
+        });
+
+        if(conflict) {
+            res.status(400); throw new Error('New slot is already taken');
+        }
+
+        booking.date = newDate;
+        booking.startTime = newStart;
         booking.endTime = req.body.endTime || booking.endTime;
-        booking.status = 'Pending'; 
+        booking.status = 'Pending'; // Reset to pending if changed
+        
         const updatedBooking = await booking.save();
         res.json(updatedBooking);
     } else {
-        res.status(404);
-        throw new Error('Booking not found');
+        res.status(404); throw new Error('Booking not found');
     }
   } catch (error) {
     next(error);
   }
 });
 
-router.delete('/:id', protect, async (req, res, next) => {
-    try {
-      const booking = await Booking.findById(req.params.id);
-      if(booking){
-          if(booking.user.toString() !== req.user._id.toString() && !req.user.isAdmin){
-              res.status(401);
-              throw new Error('Not authorized');
-          }
-          await Booking.deleteOne({ _id: req.params.id });
-          res.json({ message: 'Booking removed' });
-      } else {
-          res.status(404);
-          throw new Error('Booking not found');
-      }
-    } catch (error) {
-      next(error);
-    }
-  });
-
-router.get('/', protect, admin, async (req, res, next) => {
+// @desc    Get ALL Bookings (For Admin & Manager Tables)
+// @access  Manager or Admin
+router.get('/all', protect, manager, async (req, res, next) => {
   try {
-    const bookings = await Booking.find({}).populate('user', 'name email').populate('court', 'name');
+    let query = {};
+
+    // IF MANAGER: Only show bookings for their court
+    if (req.user.role === 'manager') {
+        const myCourt = await Court.findOne({ manager: req.user._id });
+        if (!myCourt) return res.json([]); // No court assigned
+        query = { court: myCourt._id };
+    }
+    // IF ADMIN: query remains empty {} -> returns all
+
+    const bookings = await Booking.find(query)
+        .populate('user', 'name email')
+        .populate('court', 'name')
+        .sort({ date: -1 });
+        
     res.json(bookings);
   } catch (error) {
     next(error);
   }
 });
 
-router.patch('/:id/status', protect, admin, async (req, res, next) => {
+// @desc    Delete/Cancel Booking
+// @access  User (Own), Manager (Own Court), Admin (Any)
+router.delete('/:id', protect, async (req, res, next) => {
+    try {
+      const booking = await Booking.findById(req.params.id);
+      if(!booking) { res.status(404); throw new Error('Booking not found'); }
+
+      let authorized = false;
+
+      // 1. User owns it
+      if (booking.user && booking.user.toString() === req.user._id.toString()) authorized = true;
+      // 2. Admin
+      if (req.user.role === 'admin') authorized = true;
+      // 3. Manager owns the court
+      if (req.user.role === 'manager') {
+          const court = await Court.findById(booking.court);
+          if (court && court.manager.toString() === req.user._id.toString()) authorized = true;
+      }
+
+      if (!authorized) {
+          res.status(401); throw new Error('Not authorized');
+      }
+
+      await Booking.deleteOne({ _id: req.params.id });
+      res.json({ message: 'Booking removed' });
+
+    } catch (error) {
+      next(error);
+    }
+});
+
+// @desc    Approve/Reject Booking
+// @access  Manager (Own Court) or Admin
+router.patch('/:id/status', protect, manager, async (req, res, next) => {
     try {
         const { status } = req.body; 
         const booking = await Booking.findById(req.params.id);
 
-        if(!booking) {
-            res.status(404);
-            throw new Error('Booking not found');
+        if(!booking) { res.status(404); throw new Error('Booking not found'); }
+
+        // Manager Check
+        if (req.user.role === 'manager') {
+            const court = await Court.findById(booking.court);
+            if (!court || court.manager.toString() !== req.user._id.toString()) {
+                res.status(401); throw new Error('Not authorized for this court');
+            }
         }
 
         if(status === 'Approved') {
@@ -143,13 +221,13 @@ router.patch('/:id/status', protect, admin, async (req, res, next) => {
                 court: booking.court,
                 date: booking.date,
                 startTime: booking.startTime,
-                status: 'Approved',
+                status: 'Approved', // Only check against actually approved slots
                 _id: { $ne: booking._id }
             });
             
             if(conflict) {
                 res.status(400);
-                throw new Error('Cannot approve. Slot already taken by another approved booking.');
+                throw new Error('Cannot approve. Slot already taken.');
             }
         }
 

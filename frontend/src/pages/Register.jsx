@@ -44,7 +44,7 @@ const Register = () => {
             onChange={(e) => setFormData({...formData, password: e.target.value})} 
             required 
           />
-          <button type="submit">Register & Login</button>
+          <button type="submit">Create Account</button>
         </form>
         
         <p className="form-footer-text">

@@ -9,6 +9,8 @@ import Register from './pages/Register';
 import TeamProfile from './pages/TeamProfile';
 import FindTeam from './pages/FindTeam';
 import AdminBookings from './pages/AdminBookings';
+import ManagerDashboard from './pages/ManagerDashboard';
+import AdminDashboard from './pages/AdminDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import Requests from './pages/Requests';
 import { ToastContainer } from 'react-toastify';
@@ -25,36 +27,20 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           
-          {/* Public Access to Courts */}
           <Route path="/courts" element={<Courts />} />
           <Route path="/courts/:id" element={<CourtDetails />} />
 
-          {/* Protected Routes - Now redirects to /login if not authenticated */}
-          <Route 
-            path="/profile" 
-            element={
-              <ProtectedRoute>
-                <TeamProfile />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/find-team" 
-            element={
-              <ProtectedRoute>
-                <FindTeam />
-              </ProtectedRoute>
-            } 
-          />
+          {/* User Routes */}
+          <Route path="/profile" element={<ProtectedRoute><TeamProfile /></ProtectedRoute>} />
+          <Route path="/find-team" element={<ProtectedRoute><FindTeam /></ProtectedRoute>} />
           <Route path="/requests" element={<ProtectedRoute><Requests /></ProtectedRoute>} />
-          <Route 
-            path="/admin/bookings" 
-            element={
-              <ProtectedRoute>
-                <AdminBookings />
-              </ProtectedRoute>
-            } 
-          />
+          
+          {/* Manager Route */}
+          <Route path="/manager/dashboard" element={<ProtectedRoute><ManagerDashboard /></ProtectedRoute>} />
+          <Route path="/manager/bookings" element={<ProtectedRoute><AdminBookings /></ProtectedRoute>} /> {/* Re-using booking table for managers */}
+
+          {/* Super Admin Route */}
+          <Route path="/admin/dashboard" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

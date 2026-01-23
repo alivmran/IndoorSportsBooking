@@ -221,8 +221,8 @@ body {
     font-weight: 500;
 }
 
-.form-link { 
-    color: var(--primary-color) !important; /* Forces Bright Blue */
+.form-link, .form-link:visited { 
+    color: var(--primary-color) !important; 
     text-decoration: none; 
     font-weight: 700; 
     margin-left: 5px; 

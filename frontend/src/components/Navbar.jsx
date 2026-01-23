@@ -8,38 +8,60 @@ const Navbar = () => {
 
   const handleLogout = () => {
     logout();
-    navigate('/');
+    navigate('/login');
   };
+
+  const isSuperAdmin = user && (user.role === 'admin' || user.isAdmin);
+  const isManager = user && user.role === 'manager';
+  const isUser = user && user.role === 'user'; // Or standard user
+
+  // Home Link Logic
+  const goHome = () => {
+      if(isSuperAdmin) navigate('/admin/dashboard');
+      else if(isManager) navigate('/manager/dashboard');
+      else navigate('/');
+  }
 
   return (
     <nav className="navbar">
-      <div className="logo-container" onClick={() => navigate('/')}>
+      <div className="logo-container" onClick={goHome}>
         <img src="/Artboard1.png" alt="Logo" className="logo-img" />
         <span className="logo-text">SportsBooking</span>
       </div>
       
       <div className="links">
-        <Link to="/courts" className="nav-action">Browse Courts</Link>
+        {/* --- SUPER ADMIN LINKS --- */}
+        {isSuperAdmin && (
+            <>
+                <Link to="/admin/dashboard" className="nav-action">Admin Panel</Link>
+                <span className="badge" style={{background:'#ef4444', color:'white'}}>Super Admin</span>
+            </>
+        )}
 
-        {user ? (
-          <>
-            {!user.isAdmin && (
-              <>
-                {/* Changed to Find A Match */}
-                <Link to="/find-team" className="nav-action">Find A Match</Link>
+        {/* --- MANAGER LINKS --- */}
+        {isManager && (
+            <>
+                <Link to="/manager/dashboard" className="nav-action">Manager Dashboard</Link>
+                <span className="badge" style={{background:'#10b981', color:'white'}}>Manager</span>
+            </>
+        )}
+
+        {/* --- PLAYER LINKS --- */}
+        {(!user || isUser) && (
+            <Link to="/courts" className="nav-action">Browse Courts</Link>
+        )}
+        {isUser && (
+            <>
+                <Link to="/find-team" className="nav-action">Find Match</Link>
                 <Link to="/profile" className="nav-action">My Profile</Link>
-              </>
-            )}
-            {user.isAdmin && (
-              <>
-                <Link to="/admin/bookings" className="nav-action">Manage Bookings</Link>
-                <span className="badge" style={{background:'#ef4444', color:'white'}}>Admin</span>
-              </>
-            )}
-            <button onClick={handleLogout}>Logout</button>
-          </>
+            </>
+        )}
+
+        {/* --- AUTH --- */}
+        {user ? (
+            <button onClick={handleLogout} style={{marginLeft:'10px'}}>Logout</button>
         ) : (
-           <Link to="/login" style={{color:'var(--primary-color)', fontWeight:'600', textDecoration:'none'}}>Login</Link>
+           <Link to="/login" className="login-link">Login</Link>
         )}
       </div>
     </nav>

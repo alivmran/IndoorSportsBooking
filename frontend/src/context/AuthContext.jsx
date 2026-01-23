@@ -1,45 +1,41 @@
-import { createContext, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { createContext, useState, useEffect } from 'react';
 import API from '../api/axios';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(() => {
-    const savedUser = sessionStorage.getItem('userInfo');
-    return savedUser ? JSON.parse(savedUser) : null;
-  });
-  
-  const navigate = useNavigate();
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true); // Prevent flashing wrong UI
+
+  useEffect(() => {
+    const userInfo = localStorage.getItem('userInfo');
+    if (userInfo) {
+      setUser(JSON.parse(userInfo));
+    }
+    setLoading(false);
+  }, []);
 
   const login = async (email, password) => {
-    const { data } = await API.post('/auth/login', { email, password });
-    sessionStorage.setItem('userInfo', JSON.stringify(data));
-    sessionStorage.setItem('token', data.token);
+    const { data } = await API.post('/users/login', { email, password });
+    localStorage.setItem('userInfo', JSON.stringify(data));
     setUser(data);
-    navigate('/dashboard'); 
+    return data; // Return data for redirection logic in Login.jsx
   };
 
-  const register = async (name, email, password, isAdmin, adminCode) => {
-    const { data } = await API.post('/auth/signup', { 
-      name, email, password, isAdmin, adminCode 
-    });
-    sessionStorage.setItem('userInfo', JSON.stringify(data));
-    sessionStorage.setItem('token', data.token);
+  const register = async (name, email, password) => {
+    const { data } = await API.post('/users', { name, email, password });
+    localStorage.setItem('userInfo', JSON.stringify(data));
     setUser(data);
-    navigate('/dashboard'); 
   };
 
   const logout = () => {
-    sessionStorage.removeItem('userInfo');
-    sessionStorage.removeItem('token');
+    localStorage.removeItem('userInfo');
     setUser(null);
-    navigate('/');
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout }}>
-      {children}
+    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
+      {!loading && children}
     </AuthContext.Provider>
   );
 };
