@@ -22,8 +22,19 @@ const ManagerDashboard = () => {
         await API.post('/manager/block', blockForm);
         toast.success('Blocked Successfully');
         // Refresh page logic here or state update
-        window.location.reload(); 
+        const { data } = await API.get('/manager/dashboard');
+        setData(data);
     } catch (error) { toast.error('Failed to block'); }
+  };
+
+  const handleStatusUpdate = async (id, status) => {
+      try {
+          await API.put(`/manager/booking/${id}`, { status });
+          toast.success(`Booking ${status}`);
+          // Refresh data
+          const { data } = await API.get('/manager/dashboard');
+          setData(data);
+      } catch (error) { toast.error('Update failed'); }
   };
 
   if (!data) return <div className="page-container">Loading...</div>;
@@ -49,13 +60,21 @@ const ManagerDashboard = () => {
             <h2 style={{fontSize:'1.2rem', marginBottom:'1rem'}}>Recent Activity</h2>
             <div className="table-container">
                 <table className="bookings-table">
-                    <thead><tr><th>User</th><th>Date / Time</th><th>Status</th></tr></thead>
+                    <thead><tr><th>User</th><th>Date / Time</th><th>Status</th><th>Action</th></tr></thead>
                     <tbody>
                         {data.recentActivity.map(b => (
                             <tr key={b._id}>
                                 <td>{b.user ? b.user.name : 'Manual Block'}</td>
                                 <td>{b.date}<br/>{b.startTime}</td>
                                 <td><span className={`status ${b.status.toLowerCase()}`}>{b.status}</span></td>
+                                <td>
+                                    {b.status === 'Pending' && b.type === 'Online' && (
+                                        <div style={{display:'flex', gap:'5px'}}>
+                                            <button onClick={() => handleStatusUpdate(b._id, 'Approved')} style={{background:'#10b981', border:'none', color:'white', padding:'5px 10px', borderRadius:'4px', cursor:'pointer'}} title="Approve">✓</button>
+                                            <button onClick={() => handleStatusUpdate(b._id, 'Rejected')} style={{background:'#ef4444', border:'none', color:'white', padding:'5px 10px', borderRadius:'4px', cursor:'pointer'}} title="Reject">✕</button>
+                                        </div>
+                                    )}
+                                </td>
                             </tr>
                         ))}
                     </tbody>

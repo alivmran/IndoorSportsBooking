@@ -16,18 +16,7 @@ const CourtDetails = () => {
   const [endTime, setEndTime] = useState('');
   const [activePrice, setActivePrice] = useState(0);
 
-  // --- ROLE CHECKS ---
-  
-  // 1. ADMIN: Show Admin Control Panel
-  if (user && (user.isAdmin || user.role === 'admin')) {
-      return (
-        <div className="page-container">
-            <AdminCourtView courtId={id} />
-        </div>
-      );
-  }
-
-  // 2. MANAGER: Redirect to Dashboard (They manage only their own court)
+  // --- MANAGER LOGIC ---
   useEffect(() => {
       if (user && user.role === 'manager') {
           navigate('/manager/dashboard');
@@ -65,6 +54,16 @@ const CourtDetails = () => {
       navigate('/profile'); 
     } catch (error) { toast.error(error.response?.data?.message || 'Failed'); }
   };
+
+  // --- ADMIN LOGIC ---
+  // If admin, hijack the view to show the Admin Control Panel
+  if (user && (user.isAdmin || user.role === 'admin')) {
+      return (
+        <div className="page-container">
+            <AdminCourtView courtId={id} />
+        </div>
+      );
+  }
 
   if (!court) return <div className="page-container">Loading...</div>;
 

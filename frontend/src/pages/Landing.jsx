@@ -9,11 +9,19 @@ const Landing = () => {
   const [featuredCourts, setFeaturedCourts] = useState([]);
 
   useEffect(() => {
+    if (user && user.role === 'manager') {
+      navigate('/manager/dashboard');
+    } else if (user && (user.role === 'admin' || user.isAdmin)) {
+      navigate('/admin/dashboard');
+    }
+  }, [user, navigate]);
+
+  useEffect(() => {
     const fetchFeatured = async () => {
       try {
         const { data } = await API.get('/courts');
         setFeaturedCourts(data.slice(0, 4)); 
-      } catch (error) {
+      } catch {
         console.error('Error fetching courts');
       }
     };

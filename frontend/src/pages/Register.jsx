@@ -13,7 +13,7 @@ const Register = () => {
     try {
       await register(formData.name, formData.email, formData.password);
       navigate('/'); 
-    } catch (error) {
+    } catch {
       toast.error('Registration failed. Try again.');
     }
   };

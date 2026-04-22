@@ -15,7 +15,6 @@ const Navbar = () => {
   const isManager = user && user.role === 'manager';
   const isUser = user && user.role === 'user'; // Or standard user
 
-  // Home Link Logic
   const goHome = () => {
       if(isSuperAdmin) navigate('/admin/dashboard');
       else if(isManager) navigate('/manager/dashboard');

@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
 import { toast } from 'react-toastify';
 
+
+
 const Login = () => {
   const { login, user } = useContext(AuthContext);
   const navigate = useNavigate();
@@ -11,7 +13,13 @@ const Login = () => {
 
   useEffect(() => {
     if (user) {
-      navigate('/');
+      if (user.role === 'admin' || user.isAdmin) {
+        navigate('/admin/dashboard');
+      } else if (user.role === 'manager') {
+        navigate('/manager/dashboard');
+      } else {
+        navigate('/');
+      }
     }
   }, [user, navigate]);
 

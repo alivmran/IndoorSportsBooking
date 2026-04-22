@@ -26,5 +26,56 @@ router.get('/dashboard', protect, manager, async (req, res, next) => {
     next(error);
   }
 });
+router.post('/block', protect, manager, async (req, res, next) => {
+  try {
+    const { date, startTime, endTime } = req.body;
+    const court = await Court.findOne({ manager: req.user._id });
+    if (!court) return res.status(404).json({ message: 'No court assigned' });
+
+    const conflict = await Booking.findOne({
+      court: court._id,
+      date,
+      status: 'Approved',
+      $or: [
+        { startTime: { $lt: endTime }, endTime: { $gt: startTime } }
+      ]
+    });
+    if (conflict) return res.status(400).json({ message: 'Time slot is already booked' });
+
+    const newBlock = new Booking({
+      court: court._id,
+      date,
+      startTime,
+      endTime,
+      status: 'Approved',
+      type: 'ManualBlock'
+    });
+    await newBlock.save();
+    res.status(201).json(newBlock);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put('/booking/:id', protect, manager, async (req, res, next) => {
+  try {
+    const { status } = req.body;
+    if (!['Approved', 'Rejected'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid status' });
+    }
+
+    const court = await Court.findOne({ manager: req.user._id });
+    if (!court) return res.status(404).json({ message: 'No court assigned' });
+
+    const booking = await Booking.findOne({ _id: req.params.id, court: court._id });
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
+
+    booking.status = status;
+    await booking.save();
+    res.json(booking);
+  } catch (error) {
+    next(error);
+  }
+});
 
 module.exports = router;

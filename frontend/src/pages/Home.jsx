@@ -19,12 +19,20 @@ const Home = () => {
   // ... (keep admin state and handlers from previous code if needed, simplified here for brevity of the new feature) ...
 
   useEffect(() => {
+    if (user && user.role === 'manager') {
+      navigate('/manager/dashboard');
+    } else if (user && (user.role === 'admin' || user.isAdmin)) {
+      navigate('/admin/dashboard');
+    }
+  }, [user, navigate]);
+
+  useEffect(() => {
     const fetchCourts = async () => {
       try {
         const { data } = await API.get('/courts');
         setCourts(data);
         setFilteredCourts(data);
-      } catch (error) {
+      } catch {
         toast.error('Failed to load courts');
       }
     };

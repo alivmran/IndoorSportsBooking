@@ -14,6 +14,7 @@ const courtSchema = mongoose.Schema({
   description: { type: String },
   images: [{ type: String }], 
   amenities: [{ type: String }], 
+  manager: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Court', courtSchema);
