@@ -37,6 +37,29 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleAssignManager = async (courtId) => {
+    const name = window.prompt("Enter Manager Name:");
+    if (!name) return;
+    const email = window.prompt("Enter Manager Email:");
+    if (!email) return;
+    const password = window.prompt("Enter Initial Password for Manager:");
+    if (!password) return;
+    try {
+        const res = await API.post('/admin/assign-manager', { courtId, managerName: name, managerEmail: email, password });
+        toast.success(`Assigned! Password: ${res.data.manager.password}`);
+        fetchData();
+    } catch (error) { toast.error(error.response?.data?.message || 'Failed'); }
+  };
+
+  const handleResetPassword = async (managerId) => {
+    const newPassword = window.prompt("Enter New Password for Manager:");
+    if (!newPassword) return;
+    try {
+        await API.post('/admin/reset-manager-password', { managerId, newPassword });
+        toast.success('Password updated!');
+    } catch (error) { toast.error('Failed to update password'); }
+  };
+
   return (
     <div className="page-container">
       <h1 className="page-title">Super Admin Panel</h1>
@@ -95,6 +118,22 @@ const AdminDashboard = () => {
                                 >
                                     Manage
                                 </button>
+                                {(!court.manager || !court.manager.email) && (
+                                    <button 
+                                        onClick={() => handleAssignManager(court._id)} 
+                                        style={{background:'#10b981', border:'none', color:'white', padding:'6px 12px', borderRadius:'4px', cursor:'pointer'}}
+                                    >
+                                        Assign
+                                    </button>
+                                )}
+                                {(court.manager && court.manager.email) && (
+                                    <button 
+                                        onClick={() => handleResetPassword(court.manager._id)} 
+                                        style={{background:'transparent', border:'1px solid #facc15', color:'#facc15', padding:'6px 12px', borderRadius:'4px', cursor:'pointer'}}
+                                    >
+                                        Reset Pass
+                                    </button>
+                                )}
                                 {/* DELETE BUTTON */}
                                 <button 
                                     onClick={() => handleDelete(court._id)} 

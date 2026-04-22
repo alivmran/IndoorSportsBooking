@@ -19,6 +19,7 @@ router.get('/dashboard', protect, manager, async (req, res, next) => {
 
     res.json({
       courtName: court.name,
+      courtId: court._id,
       stats: { totalBookings, activeBookings: approvedBookings.length, pendingRequests, totalRevenue },
       recentActivity: bookings.slice(0, 10) // Top 10 recent
     });
@@ -28,30 +29,41 @@ router.get('/dashboard', protect, manager, async (req, res, next) => {
 });
 router.post('/block', protect, manager, async (req, res, next) => {
   try {
-    const { date, startTime, endTime } = req.body;
+    const { date, timeBlocks } = req.body;
     const court = await Court.findOne({ manager: req.user._id });
     if (!court) return res.status(404).json({ message: 'No court assigned' });
 
-    const conflict = await Booking.findOne({
-      court: court._id,
-      date,
-      status: 'Approved',
-      $or: [
-        { startTime: { $lt: endTime }, endTime: { $gt: startTime } }
-      ]
-    });
-    if (conflict) return res.status(400).json({ message: 'Time slot is already booked' });
+    if (!timeBlocks || timeBlocks.length === 0) {
+      return res.status(400).json({ message: 'No time slots provided' });
+    }
 
-    const newBlock = new Booking({
-      court: court._id,
-      date,
-      startTime,
-      endTime,
-      status: 'Approved',
-      type: 'ManualBlock'
-    });
-    await newBlock.save();
-    res.status(201).json(newBlock);
+    const createdBlocks = [];
+
+    for (let block of timeBlocks) {
+      const { startTime, endTime } = block;
+
+      const conflict = await Booking.findOne({
+        court: court._id,
+        date,
+        status: { $ne: 'Rejected' },
+        $or: [
+          { startTime: { $lt: endTime }, endTime: { $gt: startTime } }
+        ]
+      });
+      if (conflict) return res.status(400).json({ message: `Time slot ${startTime}-${endTime} is already booked` });
+
+      const newBlock = new Booking({
+        court: court._id,
+        date,
+        startTime,
+        endTime,
+        status: 'Approved',
+        type: 'ManualBlock'
+      });
+      await newBlock.save();
+      createdBlocks.push(newBlock);
+    }
+    res.status(201).json(createdBlocks);
   } catch (error) {
     next(error);
   }

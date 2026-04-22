@@ -85,6 +85,45 @@ router.get('/court/:id/stats', protect, admin, async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
+// @desc    Assign Manager to Existing Court
+router.post('/assign-manager', protect, admin, async (req, res, next) => {
+  try {
+    const { courtId, managerName, managerEmail } = req.body;
+    const court = await Court.findById(courtId);
+    if (!court) throw new Error('Court not found');
+    const existingUser = await User.findOne({ email: managerEmail });
+    if (existingUser) throw new Error(`Manager email '${managerEmail}' is already in use.`);
+    const password = req.body.password;
+    const manager = await User.create({ name: managerName, email: managerEmail, password, role: 'manager', managedCourt: court._id });
+    court.manager = manager._id;
+    await court.save();
+    res.status(201).json({ message: 'Manager Assigned', manager: { email: manager.email, password } });
+  } catch(error) {
+    if (error.code === 11000) {
+        res.status(400);
+        next(new Error(`Duplicate Data: Email already exists.`));
+    } else {
+        next(error);
+    }
+  }
+});
+
+// @desc    Reset Manager Password
+// @route   POST /api/admin/reset-manager-password
+// @access  Private Admin
+router.post('/reset-manager-password', protect, admin, async (req, res, next) => {
+  try {
+    const { managerId, newPassword } = req.body;
+    const manager = await User.findById(managerId);
+    if (!manager) throw new Error('Manager not found');
+    manager.password = newPassword;
+    await manager.save();
+    res.json({ message: 'Password updated successfully' });
+  } catch(error) {
+    next(error);
+  }
+});
+
 // @desc    Update Court
 router.put('/court/:id', protect, admin, async (req, res, next) => {
     try {

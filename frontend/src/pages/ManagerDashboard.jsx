@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import API from '../api/axios';
 import { toast } from 'react-toastify';
+import TimeSlotPicker from '../components/TimeSlotPicker';
 
 const ManagerDashboard = () => {
   const [data, setData] = useState(null);
-  const [blockForm, setBlockForm] = useState({ date: '', startTime: '', endTime: '' });
+  const [blockDate, setBlockDate] = useState('');
+  const [selectedSlots, setSelectedSlots] = useState([]);
+  const [unavailableSlots, setUnavailableSlots] = useState([]);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -16,15 +19,54 @@ const ManagerDashboard = () => {
     fetchStats();
   }, []);
 
+  useEffect(() => {
+    if (blockDate && data && data.courtId) {
+        const fetchAvailability = async () => {
+            try {
+                const res = await API.get(`/bookings/availability?courtId=${data.courtId}&date=${blockDate}`);
+                setUnavailableSlots(res.data);
+                setSelectedSlots([]);
+            } catch(e) { console.error(e); }
+        };
+        fetchAvailability();
+    }
+  }, [blockDate, data]);
+
   const handleBlock = async (e) => {
     e.preventDefault();
+    if (selectedSlots.length === 0) {
+      toast.error('Please select at least one time slot');
+      return;
+    }
+
+    const groupTimeSlots = (slotsArray) => {
+      const sorted = [...slotsArray].sort();
+      const blocks = [];
+      let currentStart = sorted[0].split('-')[0];
+      let currentEnd = sorted[0].split('-')[1];
+      for (let i = 1; i < sorted.length; i++) {
+        const [nextStart, nextEnd] = sorted[i].split('-');
+        if (currentEnd === nextStart) {
+          currentEnd = nextEnd;
+        } else {
+          blocks.push({ startTime: currentStart, endTime: currentEnd });
+          currentStart = nextStart;
+          currentEnd = nextEnd;
+        }
+      }
+      blocks.push({ startTime: currentStart, endTime: currentEnd });
+      return blocks;
+    };
+
     try {
-        await API.post('/manager/block', blockForm);
+        const timeBlocks = groupTimeSlots(selectedSlots);
+        await API.post('/manager/block', { date: blockDate, timeBlocks });
         toast.success('Blocked Successfully');
-        // Refresh page logic here or state update
+        setSelectedSlots([]);
+        setBlockDate('');
         const { data } = await API.get('/manager/dashboard');
         setData(data);
-    } catch (error) { toast.error('Failed to block'); }
+    } catch (error) { toast.error(error.response?.data?.message || 'Failed to block'); }
   };
 
   const handleStatusUpdate = async (id, status) => {
@@ -55,7 +97,7 @@ const ManagerDashboard = () => {
         <div className="stat-card"><h3>Confirmed</h3><p className="stat-value">{data.stats.activeBookings}</p></div>
       </div>
 
-      <div className="dashboard-layout">
+      <div className="dashboard-layout" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '2rem' }}>
         <div className="activity-section">
             <h2 style={{fontSize:'1.2rem', marginBottom:'1rem'}}>Recent Activity</h2>
             <div className="table-container">
@@ -86,12 +128,14 @@ const ManagerDashboard = () => {
             <div className="form-container" style={{margin:0, maxWidth:'100%', border:'1px solid #333', padding:'1.5rem'}}>
                 <h3 style={{color:'#ef4444'}}>Block Slot</h3>
                 <form onSubmit={handleBlock}>
-                    <div className="form-group"><label>Date</label><input type="date" onChange={e=>setBlockForm({...blockForm, date:e.target.value})} required /></div>
-                    <div className="form-row">
-                        <div className="form-group"><label>Start</label><input type="time" onChange={e=>setBlockForm({...blockForm, startTime:e.target.value})} required /></div>
-                        <div className="form-group"><label>End</label><input type="time" onChange={e=>setBlockForm({...blockForm, endTime:e.target.value})} required /></div>
-                    </div>
-                    <button className="confirm-btn" style={{background:'#ef4444'}}>Mark as Taken</button>
+                    <div className="form-group"><label>Date</label><input type="date" min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]} value={blockDate} onChange={e=>setBlockDate(e.target.value)} required /></div>
+                    {blockDate && (
+                      <div className="form-group">
+                          <label>Select Time Slots</label>
+                          <TimeSlotPicker selectedSlots={selectedSlots} onChange={setSelectedSlots} unavailableSlots={unavailableSlots} />
+                      </div>
+                    )}
+                    <button className="confirm-btn" style={{background:'#ef4444'}} disabled={selectedSlots.length === 0}>Mark as Taken</button>
                 </form>
             </div>
         </div>

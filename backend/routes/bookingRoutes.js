@@ -52,38 +52,88 @@ router.post('/block', protect, manager, async (req, res, next) => {
   }
 });
 
+// @desc    Get Unavailable Slots
+// @access  Public/User
+router.get('/availability', async (req, res, next) => {
+  try {
+      const { courtId, date } = req.query;
+      if (!courtId || !date) return res.json([]);
+      
+      const bookings = await Booking.find({
+          court: courtId,
+          date: date,
+          status: { $ne: 'Rejected' }
+      });
+      
+      let unavailable = [];
+      bookings.forEach(b => {
+          // Add individual hourly slots between startTime and endTime
+          const startHour = parseInt(b.startTime.split(':')[0]);
+          const endHour = parseInt(b.endTime.split(':')[0]);
+          for(let i=startHour; i<endHour; i++) {
+              const start = i.toString().padStart(2, '0') + ':00';
+              const end = (i+1).toString().padStart(2, '0') + ':00';
+              unavailable.push(`${start}-${end}`);
+          }
+      });
+      
+      res.json([...new Set(unavailable)]);
+  } catch (error) {
+      next(error);
+  }
+});
+
 // @desc    Create Online Booking
 // @access  User
 router.post('/', protect, async (req, res, next) => {
   try {
-    const { courtId, date, startTime, endTime, totalPrice } = req.body;
+    const { courtId, date, timeBlocks, totalPrice } = req.body;
     
-    // Check conflicts (Approved or Pending or ManualBlock)
-    const existingApproved = await Booking.findOne({
-      court: courtId,
-      date: date,
-      startTime: startTime,
-      status: { $ne: 'Rejected' }
-    });
-
-    if (existingApproved) {
-      res.status(400);
-      throw new Error('Slot is not available.');
+    if (!timeBlocks || timeBlocks.length === 0) {
+      res.status(400); throw new Error('No time slots provided.');
     }
 
-    const booking = new Booking({
-      user: req.user._id,
-      court: courtId,
-      date,
-      startTime,
-      endTime,
-      status: 'Pending',
-      type: 'Online',
-      totalPrice: totalPrice || 0
-    });
+    const pendingCount = await Booking.countDocuments({ user: req.user._id, status: 'Pending' });
+    if (pendingCount + timeBlocks.length > 3) {
+        res.status(400); throw new Error('You can only have up to 3 pending booking slots at a time. Please wait for approval or cancel a pending request.');
+    }
 
-    const createdBooking = await booking.save();
-    res.status(201).json(createdBooking);
+    const createdBookings = [];
+    const pricePerBlock = totalPrice / timeBlocks.length;
+
+    for (let block of timeBlocks) {
+      const { startTime, endTime } = block;
+
+      // Check conflicts (Approved or Pending or ManualBlock)
+      const existingApproved = await Booking.findOne({
+        court: courtId,
+        date: date,
+        status: { $ne: 'Rejected' },
+        $or: [
+          { startTime: { $lt: endTime }, endTime: { $gt: startTime } }
+        ]
+      });
+
+      if (existingApproved) {
+        res.status(400); throw new Error(`Slot ${startTime}-${endTime} is not available.`);
+      }
+
+      const booking = new Booking({
+        user: req.user._id,
+        court: courtId,
+        date,
+        startTime,
+        endTime,
+        status: 'Pending',
+        type: 'Online',
+        totalPrice: pricePerBlock || 0
+      });
+
+      await booking.save();
+      createdBookings.push(booking);
+    }
+
+    res.status(201).json(createdBookings);
   } catch (error) {
     next(error);
   }

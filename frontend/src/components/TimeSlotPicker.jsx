@@ -1,13 +1,16 @@
 import React from 'react';
 
-const TimeSlotPicker = ({ selectedSlots, onChange }) => {
+const TimeSlotPicker = ({ selectedSlots, onChange, unavailableSlots = [] }) => {
   // Generate 24 hourly slots: "00:00 - 01:00", "01:00 - 02:00", etc.
   const generateSlots = () => {
     const slots = [];
     for (let i = 0; i < 24; i++) {
       const start = i.toString().padStart(2, '0') + ':00';
       const end = ((i + 1) % 24).toString().padStart(2, '0') + ':00';
-      slots.push(`${start}-${end}`);
+      const slot = `${start}-${end}`;
+      if (!unavailableSlots.includes(slot)) {
+          slots.push(slot);
+      }
     }
     return slots;
   };
