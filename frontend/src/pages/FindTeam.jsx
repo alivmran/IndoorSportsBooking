@@ -88,7 +88,7 @@ const FindTeam = () => {
               <div key={post._id} className="card">
                   <div className="card-header">
                       <h3>{post.court?.name}</h3>
-                      <span className="badge">{post.court?.sportType || 'MATCH'}</span>
+                      <span className="badge">{post.court?.facilities?.join(', ') || 'MATCH'}</span>
                   </div>
                   <div className="card-body" style={{background: 'rgba(255,255,255,0.03)', borderTop: '1px solid #333', borderBottom: '1px solid #333'}}>
                       <div style={{display:'flex', alignItems:'center', gap:'10px', marginBottom:'15px'}}>

@@ -5,24 +5,58 @@ const Court = require('../models/Court');
 const Booking = require('../models/Booking');
 const { protect, admin } = require('../middleware/authMiddleware');
 
+const parseHour = (timeString) => {
+  if (!timeString || typeof timeString !== 'string') return null;
+  const [h, m] = timeString.split(':').map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m) || m !== 0 || h < 0 || h > 24) return null;
+  return h;
+};
+
 // @desc    Global Admin Data
 router.get('/data', protect, admin, async (req, res, next) => {
   try {
     const courts = await Court.find({}).populate('manager', 'name email');
     const managers = await User.find({ role: 'manager' });
+    const disputes = await Booking.find({ status: 'Disputed' })
+      .populate('user', 'name email')
+      .populate({ path: 'court', select: 'name manager', populate: { path: 'manager', select: 'name email' } })
+      .sort({ updatedAt: -1 });
     
     const totalBookings = await Booking.countDocuments();
     const totalRevenue = (await Booking.find({ status: 'Approved', type: 'Online' }))
         .reduce((acc, curr) => acc + (curr.totalPrice || 0), 0);
 
-    res.json({ courts, managers, stats: { totalBookings, totalRevenue } });
+    res.json({ courts, managers, disputes, stats: { totalBookings, totalRevenue, pendingDisputes: disputes.length } });
   } catch (error) { next(error); }
 });
 
 // @desc    Create Court & Manager (FIXED)
 router.post('/create-court', protect, admin, async (req, res, next) => {
   try {
-    const { courtName, location, sportType, pricePerHour, priceWeekend, managerName, managerEmail } = req.body;
+    const {
+      courtName,
+      location,
+      facilities,
+      amenities,
+      googleMapLink,
+      paymentBank,
+      paymentAccountTitle,
+      paymentAccountNumber,
+      advanceRequired,
+      operationalStartTime,
+      operationalEndTime,
+      pricePerHour,
+      priceWeekend,
+      managerName,
+      managerEmail
+    } = req.body;
+
+    const startHour = parseHour(operationalStartTime || '00:00');
+    const endHour = parseHour(operationalEndTime || '24:00');
+    if (startHour === null || endHour === null || endHour <= startHour) {
+      res.status(400);
+      throw new Error('Operational hours must be hourly values and end after start.');
+    }
 
     // Check if Email Taken
     const existingUser = await User.findOne({ email: managerEmail });
@@ -40,7 +74,19 @@ router.post('/create-court', protect, admin, async (req, res, next) => {
 
     // Create Court
     const court = await Court.create({
-        name: courtName, location, sportType, pricePerHour, priceWeekend: priceWeekend || pricePerHour, 
+        name: courtName,
+        location,
+        facilities,
+        amenities,
+        googleMapLink,
+        paymentBank,
+        paymentAccountTitle,
+        paymentAccountNumber,
+        advanceRequired: advanceRequired || 0,
+        operationalStartTime: operationalStartTime || '00:00',
+        operationalEndTime: operationalEndTime || '24:00',
+        pricePerHour,
+        priceWeekend: priceWeekend || pricePerHour, 
         manager: manager._id, images: []
     });
 
@@ -145,16 +191,58 @@ router.delete('/court/:id', protect, admin, async (req, res, next) => {
 // @desc    Admin Block Slot
 router.post('/block-slot', protect, admin, async (req, res, next) => {
     try {
-        const { courtId, date, startTime, endTime } = req.body;
-        const conflict = await Booking.findOne({ court: courtId, date, startTime, status: { $ne: 'Rejected' } });
-        if(conflict) { res.status(400); throw new Error('Slot occupied'); }
-        
-        await Booking.create({
-            court: courtId, user: req.user._id, date, startTime, endTime,
-            status: 'Approved', type: 'ManualBlock', totalPrice: 0
-        });
+        const { courtId, facility, date, startTime, endTime, timeBlocks } = req.body;
+        const court = await Court.findById(courtId);
+        if (!court) {
+          res.status(404);
+          throw new Error('Court not found');
+        }
+        const blocks = Array.isArray(timeBlocks) && timeBlocks.length > 0
+          ? timeBlocks
+          : [{ startTime, endTime }];
+
+        for (const block of blocks) {
+          const blockStartHour = parseHour(block.startTime);
+          const blockEndHour = parseHour(block.endTime);
+          const openHour = parseHour(court.operationalStartTime || '00:00');
+          const closeHour = parseHour(court.operationalEndTime || '24:00');
+          if (blockStartHour === null || blockEndHour === null || blockEndHour <= blockStartHour) {
+            res.status(400);
+            throw new Error('Invalid time block.');
+          }
+          if (blockStartHour < openHour || blockEndHour > closeHour) {
+            res.status(400);
+            throw new Error('Block time is outside operational hours.');
+          }
+          const conflict = await Booking.findOne({ court: courtId, facility, date, startTime: block.startTime, status: { $ne: 'Rejected' } });
+          if(conflict) { res.status(400); throw new Error(`Slot ${block.startTime}-${block.endTime} occupied`); }
+          
+          await Booking.create({
+              court: courtId, facility, user: req.user._id, date, startTime: block.startTime, endTime: block.endTime,
+              status: 'Approved', type: 'ManualBlock', totalPrice: 0
+          });
+        }
         res.status(201).json({ message: 'Blocked' });
     } catch (error) { next(error); }
+});
+
+router.put('/disputes/:id/resolve', protect, admin, async (req, res, next) => {
+  try {
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) {
+      res.status(404);
+      throw new Error('Dispute booking not found');
+    }
+    if (booking.status !== 'Disputed') {
+      res.status(400);
+      throw new Error('This booking is not in disputed state');
+    }
+    booking.status = 'Refunded';
+    await booking.save();
+    res.json({ message: 'Dispute marked as resolved.' });
+  } catch (error) {
+    next(error);
+  }
 });
 
 module.exports = router;

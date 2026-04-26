@@ -3,12 +3,27 @@ const mongoose = require('mongoose');
 const bookingSchema = mongoose.Schema({
   court: { type: mongoose.Schema.Types.ObjectId, ref: 'Court', required: true },
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, 
+  facility: {
+    type: String,
+    enum: ['Padel', 'Futsal', 'Cricket'],
+    required: true
+  },
   date: { type: String, required: true },
   startTime: { type: String, required: true },
   endTime: { type: String, required: true },
   status: { 
     type: String, 
-    enum: ['Pending', 'Approved', 'Rejected'], 
+    enum: [
+      'Awaiting Payment',
+      'Pending',
+      'Approved',
+      'Rejected',
+      'Awaiting Refund Details',
+      'Refund Pending',
+      'Refund Claimed',
+      'Refunded',
+      'Disputed'
+    ], 
     default: 'Pending' 
   },
   type: {
@@ -16,7 +31,27 @@ const bookingSchema = mongoose.Schema({
     enum: ['Online', 'ManualBlock'],
     default: 'Online'
   },
-  totalPrice: { type: Number } 
+  totalPrice: { type: Number },
+  senderName: {
+    type: String
+  },
+  transactionIdShort: {
+    type: String,
+    validate: {
+      validator: function (value) {
+        if (this.type !== 'Online' || !value) return true;
+        return /^\d{4}$/.test(value || '');
+      },
+      message: 'transactionIdShort must be exactly 4 digits.'
+    }
+  },
+  advancePaid: { type: Number, default: 0 },
+  refundBankName: { type: String },
+  refundAccountTitle: { type: String },
+  refundAccountNumber: { type: String },
+  refundContactNumber: { type: String },
+  refundTransactionId: { type: String },
+  disputeReason: { type: String }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Booking', bookingSchema);

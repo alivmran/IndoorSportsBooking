@@ -2,9 +2,25 @@ const express = require('express');
 const router = express.Router();
 const MatchPost = require('../models/MatchPost');
 const Request = require('../models/Request');
+const User = require('../models/User');
 
 const Booking = require('../models/Booking');
 const { protect } = require('../middleware/authMiddleware');
+
+const toDateTime = (dateStr, startTime) => new Date(`${dateStr}T${startTime}:00`);
+const isUpcoming = (dateStr, startTime) => toDateTime(dateStr, startTime) > new Date();
+
+const runMatchCleanup = async () => {
+  const now = new Date();
+  const staleOpenPosts = await MatchPost.find({ status: 'Open' });
+  for (const post of staleOpenPosts) {
+    if (toDateTime(post.date, post.startTime) < now) {
+      post.status = 'Closed';
+      await post.save();
+      await Request.updateMany({ matchPost: post._id, status: 'PENDING' }, { status: 'EXPIRED' });
+    }
+  }
+};
 
 // ==========================
 // MATCH POSTS ROUTES
@@ -62,10 +78,11 @@ router.post('/posts', protect, async (req, res, next) => {
 // @access  Public
 router.get('/posts', async (req, res, next) => {
   try {
+    await runMatchCleanup();
     const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0];
     const posts = await MatchPost.find({ status: 'Open', date: { $gte: today } })
       .populate('user', 'name') // Captain's name
-      .populate('court', 'name sportType location') // Court details
+      .populate('court', 'name facilities location') // Court details
       .sort({ createdAt: -1 }); // Newest first
     res.json(posts);
   } catch (error) {
@@ -78,19 +95,21 @@ router.get('/posts', async (req, res, next) => {
 // @access  Private
 router.get('/history', protect, async (req, res, next) => {
   try {
+    await runMatchCleanup();
     // --- BACKGROUND CLEANUP ---
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     MatchPost.deleteMany({ date: { $lt: thirtyDaysAgo } }).exec().catch(e => console.error('Cleanup error:', e));
     // --------------------------
 
     const hosted = await MatchPost.find({ user: req.user._id, status: 'Closed' })
-      .populate('court', 'name sportType location')
+      .populate('court', 'name facilities location')
+      .populate('challengerUser', 'name')
       .sort({ createdAt: -1 });
 
     const requests = await Request.find({ sender: req.user._id, status: 'ACCEPTED' })
       .populate({
         path: 'matchPost',
-        populate: { path: 'court', select: 'name sportType location' }
+        populate: { path: 'court', select: 'name facilities location' }
       }).sort({ createdAt: -1 });
 
     const challenged = requests.map(r => r.matchPost).filter(Boolean);
@@ -166,8 +185,8 @@ router.post('/requests', protect, async (req, res, next) => {
 // @access  Private
 router.get('/requests/inbox', protect, async (req, res, next) => {
   try {
-    const requests = await Request.find({ receiver: req.user._id, status: 'PENDING' })
-      .populate('sender', 'name email')
+    const requests = await Request.find({ receiver: req.user._id, status: { $in: ['PENDING', 'ACCEPTED'] } })
+      .populate('sender', 'name email matchesPlayed noShows')
       .populate({
         path: 'matchPost',
         populate: { path: 'court', select: 'name' }
@@ -183,11 +202,11 @@ router.get('/requests/inbox', protect, async (req, res, next) => {
 // @access  Private
 router.get('/requests/sent', protect, async (req, res, next) => {
   try {
-    const requests = await Request.find({ sender: req.user._id })
+    const requests = await Request.find({ sender: req.user._id, status: { $in: ['PENDING', 'ACCEPTED', 'REJECTED', 'CANCELLED'] } })
       .populate('receiver', 'name email')
       .populate({
         path: 'matchPost',
-        populate: { path: 'court', select: 'name' },
+        populate: { path: 'court', select: 'name facilities' },
         select: 'date startTime adHocTeamName mobile court'
       }).sort({ createdAt: -1 });
     res.json(requests);
@@ -216,6 +235,20 @@ router.put('/requests/:id', protect, async (req, res, next) => {
       throw new Error('Not authorized to respond to this request');
     }
 
+    if (!['ACCEPTED', 'REJECTED'].includes(status)) {
+      res.status(400);
+      throw new Error('Invalid status');
+    }
+    if (request.status !== 'PENDING') {
+      res.status(400);
+      throw new Error('Only pending requests can be accepted/rejected');
+    }
+    const postForValidation = await MatchPost.findById(request.matchPost);
+    if (!postForValidation || !isUpcoming(postForValidation.date, postForValidation.startTime)) {
+      res.status(400);
+      throw new Error('Match is no longer upcoming.');
+    }
+
     request.status = status;
     await request.save();
 
@@ -226,13 +259,147 @@ router.put('/requests/:id', protect, async (req, res, next) => {
       if (request.type === 'CHALLENGE' && request.matchPost) {
         const post = await MatchPost.findById(request.matchPost);
         if (post) {
+          const hostHasConflict = await MatchPost.findOne({
+            user: post.user,
+            status: 'Closed',
+            date: post.date,
+            startTime: post.startTime,
+            _id: { $ne: post._id }
+          });
+          const challengerHasConflict = await MatchPost.findOne({
+            challengerUser: request.sender,
+            status: 'Closed',
+            date: post.date,
+            startTime: post.startTime,
+            _id: { $ne: post._id }
+          });
+          const senderHostingConflict = await MatchPost.findOne({
+            user: request.sender,
+            status: 'Closed',
+            date: post.date,
+            startTime: post.startTime,
+            _id: { $ne: post._id }
+          });
+          if (hostHasConflict || challengerHasConflict || senderHostingConflict) {
+            request.status = 'REJECTED';
+            await request.save();
+            res.status(400);
+            throw new Error('Cannot accept due to overlapping accepted match.');
+          }
           post.status = 'Closed'; // Match is set
+          post.challengerUser = request.sender;
           await post.save();
+          await Request.updateMany(
+            { matchPost: post._id, _id: { $ne: request._id }, status: 'PENDING' },
+            { status: 'REJECTED' }
+          );
         }
       }
     }
 
     res.json(request);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put('/requests/:id/cancel', protect, async (req, res, next) => {
+  try {
+    const request = await Request.findById(req.params.id);
+    if (!request) {
+      res.status(404);
+      throw new Error('Request not found');
+    }
+    if (
+      request.sender.toString() !== req.user._id.toString() &&
+      request.receiver.toString() !== req.user._id.toString()
+    ) {
+      res.status(401);
+      throw new Error('Not authorized to cancel this request');
+    }
+    const post = await MatchPost.findById(request.matchPost);
+    if (!post || !isUpcoming(post.date, post.startTime)) {
+      res.status(400);
+      throw new Error('Cannot cancel after match time.');
+    }
+    if (!['PENDING', 'ACCEPTED'].includes(request.status)) {
+      res.status(400);
+      throw new Error('Only pending/accepted requests can be cancelled');
+    }
+    const previousStatus = request.status;
+    request.status = 'CANCELLED';
+    await request.save();
+
+    if (previousStatus === 'ACCEPTED' && post.challengerUser) {
+      post.status = 'Open';
+      post.challengerUser = null;
+      post.attendanceReported = false;
+      await post.save();
+    }
+    res.json({ message: 'Request cancelled successfully' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/reminders/upcoming', protect, async (req, res, next) => {
+  try {
+    const now = new Date();
+    const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+    const closedMatches = await MatchPost.find({
+      status: 'Closed',
+      $or: [{ user: req.user._id }, { challengerUser: req.user._id }]
+    }).populate('court', 'name');
+
+    const reminders = closedMatches
+      .filter((m) => {
+        const dt = toDateTime(m.date, m.startTime);
+        return dt > now && dt <= twoHoursLater;
+      })
+      .map((m) => ({
+        matchId: m._id,
+        courtName: m.court?.name,
+        date: m.date,
+        startTime: m.startTime,
+        message: `Upcoming match at ${m.court?.name} on ${m.date} ${m.startTime}`
+      }));
+
+    res.json(reminders);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put('/:id/report-attendance', protect, async (req, res, next) => {
+  try {
+    const { challengerAttended } = req.body;
+    const match = await MatchPost.findById(req.params.id);
+    if (!match) {
+      res.status(404);
+      throw new Error('Match post not found');
+    }
+    if (match.user.toString() !== req.user._id.toString()) {
+      res.status(401);
+      throw new Error('Only host can report attendance');
+    }
+    if (match.status !== 'Closed') {
+      res.status(400);
+      throw new Error('Attendance can only be reported for closed matches');
+    }
+    if (match.attendanceReported) {
+      res.status(400);
+      throw new Error('Attendance already reported for this match');
+    }
+    if (!match.challengerUser) {
+      res.status(400);
+      throw new Error('No accepted challenger found for this match');
+    }
+
+    const inc = challengerAttended ? { matchesPlayed: 1 } : { noShows: 1 };
+    await User.findByIdAndUpdate(match.challengerUser, { $inc: inc });
+    match.attendanceReported = true;
+    await match.save();
+    res.json({ message: 'Attendance reported successfully' });
   } catch (error) {
     next(error);
   }

@@ -270,6 +270,28 @@ body {
 }
 @media (max-width: 900px) { .dashboard-layout { grid-template-columns: 1fr; } }
 
+@media (max-width: 900px) {
+    .navbar {
+        padding: 0.75rem 1rem;
+        height: auto;
+        min-height: 70px;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .links {
+        width: 100%;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+        gap: 0.8rem;
+    }
+    .container { padding: 1rem; }
+    .card-header { flex-wrap: wrap; gap: 8px; }
+    .bookings-table th, .bookings-table td { padding: 0.65rem; font-size: 0.88rem; }
+    .hero-banner { height: 240px; }
+    .hero-banner h1 { font-size: 1.7rem; }
+    .hero-banner p { font-size: 0.95rem; }
+}
+
 /* --- COMMON UI ELEMENTS --- */
 .add-btn, .book-btn, .confirm-btn { width: 100%; background: var(--primary-color); color: white; border: none; padding: 10px; border-radius: 6px; font-weight: 600; cursor: pointer; display: block; text-align: center; }
 .add-btn { width: auto; display: inline-block; padding: 8px 16px; }

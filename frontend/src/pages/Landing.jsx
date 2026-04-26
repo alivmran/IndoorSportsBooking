@@ -36,8 +36,8 @@ const Landing = () => {
   return (
     <div className="page-container">
       <div className="hero-banner">
-        <h1>Welcome to SportsBooking</h1>
-        <p>Your ultimate destination for professional sports facilities.</p>
+        <h1>Welcome to Khello Karachi</h1>
+        <p>Your sports booking and matchmaking platform in Karachi.</p>
       </div>
 
       {/* RESTORED: Side by Side Action Cards */}
@@ -48,11 +48,11 @@ const Landing = () => {
         </div>
         <div className="action-card" onClick={() => handleNav('/find-team')}>
           <h3>Find A Team</h3>
-          <p>Challenge local teams or join one as a solo player.</p>
+          <p>Challenge local teams with your own team lineup.</p>
         </div>
         <div className="action-card" onClick={() => handleNav('/profile')}>
           <h3>Profile & Team</h3>
-          <p>Manage your squad, view bookings, and history.</p>
+          <p>View bookings, refunds, and match history.</p>
         </div>
       </div>
 
@@ -62,7 +62,7 @@ const Landing = () => {
           <div key={court._id} className="card" onClick={() => navigate(`/courts/${court._id}`)}>
              <div className="card-header">
                 <h3>{court.name}</h3>
-                <span className="badge">{court.sportType}</span>
+                <span className="badge">{(court.facilities || []).join(', ')}</span>
             </div>
             <div className="card-body">
                 {court.images && court.images.length > 0 ? (
@@ -71,7 +71,7 @@ const Landing = () => {
                   <div className="placeholder-img">No Image</div>
                 )}
                 <p className="location-tag">📍 {court.location || 'Karachi'}</p>
-                <p className="price">${court.pricePerHour} <span className="per-hr">/ hour</span></p>
+                <p className="price">PKR {court.pricePerHour} <span className="per-hr">/ hour</span></p>
             </div>
           </div>
         ))}
