@@ -2,9 +2,25 @@ const express = require('express');
 const router = express.Router();
 const MatchPost = require('../models/MatchPost');
 const Request = require('../models/Request');
-const Team = require('../models/Team');
+const User = require('../models/User');
+
 const Booking = require('../models/Booking');
 const { protect } = require('../middleware/authMiddleware');
+
+const toDateTime = (dateStr, startTime) => new Date(`${dateStr}T${startTime}:00`);
+const isUpcoming = (dateStr, startTime) => toDateTime(dateStr, startTime) > new Date();
+
+const runMatchCleanup = async () => {
+  const now = new Date();
+  const staleOpenPosts = await MatchPost.find({ status: 'Open' });
+  for (const post of staleOpenPosts) {
+    if (toDateTime(post.date, post.startTime) < now) {
+      post.status = 'Closed';
+      await post.save();
+      await Request.updateMany({ matchPost: post._id, status: 'PENDING' }, { status: 'EXPIRED' });
+    }
+  }
+};
 
 // ==========================
 // MATCH POSTS ROUTES
@@ -15,15 +31,14 @@ const { protect } = require('../middleware/authMiddleware');
 // @access  Private
 router.post('/posts', protect, async (req, res, next) => {
   try {
-    const { 
-        bookingId, 
-        teamName, 
-        mobile, 
-        lookingForPlayers, 
-        playersNeeded, 
-        opponentSize 
+    const {
+      bookingId,
+      adHocTeamName,
+      mobile,
+      mySquadSize,
+      opponentSquadSize
     } = req.body;
-    
+
     // 1. Verify that the booking belongs to the user
     const booking = await Booking.findById(bookingId).populate('court');
     if (!booking || booking.user.toString() !== req.user._id.toString()) {
@@ -33,9 +48,9 @@ router.post('/posts', protect, async (req, res, next) => {
 
     // 2. Prevent duplicate posts for the same booking
     const existing = await MatchPost.findOne({ booking: bookingId });
-    if(existing) {
-        res.status(400);
-        throw new Error('A post already exists for this booking');
+    if (existing) {
+      res.status(400);
+      throw new Error('A post already exists for this booking');
     }
 
     // 3. Create the post
@@ -45,15 +60,13 @@ router.post('/posts', protect, async (req, res, next) => {
       court: booking.court._id,
       date: booking.date,
       startTime: booking.startTime,
-      teamName,
+      adHocTeamName,
       mobile,
-      lookingForPlayers: lookingForPlayers || false,
-      // If looking for players, save how many needed. If looking for team, save opponent size.
-      playersNeeded: lookingForPlayers ? playersNeeded : 0,
-      opponentSize: !lookingForPlayers ? opponentSize : 0,
+      mySquadSize,
+      opponentSquadSize,
       status: 'Open'
     });
-    
+
     res.status(201).json(post);
   } catch (error) {
     next(error);
@@ -65,11 +78,43 @@ router.post('/posts', protect, async (req, res, next) => {
 // @access  Public
 router.get('/posts', async (req, res, next) => {
   try {
-    const posts = await MatchPost.find({ status: 'Open' })
+    await runMatchCleanup();
+    const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0];
+    const posts = await MatchPost.find({ status: 'Open', date: { $gte: today } })
       .populate('user', 'name') // Captain's name
-      .populate('court', 'name sportType location') // Court details
+      .populate('court', 'name facilities location') // Court details
       .sort({ createdAt: -1 }); // Newest first
     res.json(posts);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// @desc    Get Match History
+// @route   GET /api/matches/history
+// @access  Private
+router.get('/history', protect, async (req, res, next) => {
+  try {
+    await runMatchCleanup();
+    // --- BACKGROUND CLEANUP ---
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    MatchPost.deleteMany({ date: { $lt: thirtyDaysAgo } }).exec().catch(e => console.error('Cleanup error:', e));
+    // --------------------------
+
+    const hosted = await MatchPost.find({ user: req.user._id, status: 'Closed' })
+      .populate('court', 'name facilities location')
+      .populate('challengerUser', 'name')
+      .sort({ createdAt: -1 });
+
+    const requests = await Request.find({ sender: req.user._id, status: 'ACCEPTED' })
+      .populate({
+        path: 'matchPost',
+        populate: { path: 'court', select: 'name facilities location' }
+      }).sort({ createdAt: -1 });
+
+    const challenged = requests.map(r => r.matchPost).filter(Boolean);
+
+    res.json({ hosted, challenged });
   } catch (error) {
     next(error);
   }
@@ -84,72 +129,48 @@ router.get('/posts', async (req, res, next) => {
 // @access  Private
 router.post('/requests', protect, async (req, res, next) => {
   try {
-    const { type, targetId } = req.body; // type: 'CHALLENGE' or 'JOIN'
+    const { type, targetId } = req.body; // type: 'CHALLENGE'
     let receiverId;
-    let teamId = null;
     let matchPostId = null;
 
     if (type === 'CHALLENGE') {
-      // Target is a MatchPost
       const post = await MatchPost.findById(targetId);
       if (!post) throw new Error('Match Post not found');
       receiverId = post.user;
       matchPostId = targetId;
-
-    } else if (type === 'JOIN') {
-      // Target could be a Team OR a MatchPost (if joining a match as solo)
-      
-      // Check if it's a Team
-      const team = await Team.findById(targetId);
-      if (team) {
-          receiverId = team.captain;
-          teamId = targetId;
-      } else {
-          // Check if it's a MatchPost
-          const post = await MatchPost.findById(targetId);
-          if(post) {
-            receiverId = post.user;
-            matchPostId = targetId;
-          } else {
-            res.status(404);
-            throw new Error('Target (Team or Match) not found');
-          }
-      }
     } else {
-        res.status(400);
-        throw new Error('Invalid Request Type');
+      res.status(400);
+      throw new Error('Invalid Request Type');
     }
 
     // Prevent requesting yourself
     if (receiverId.toString() === req.user._id.toString()) {
-        res.status(400);
-        throw new Error('You cannot send a request to yourself');
+      res.status(400);
+      throw new Error('You cannot send a request to yourself');
     }
 
     // Check if request already exists
     const query = {
-        sender: req.user._id,
-        receiver: receiverId,
-        status: 'PENDING',
-        type: type
+      sender: req.user._id,
+      receiver: receiverId,
+      status: 'PENDING',
+      type: type
     };
     if (matchPostId) query.matchPost = matchPostId;
-    if (teamId) query.team = teamId;
 
     const existing = await Request.findOne(query);
 
-    if(existing) {
-        res.status(400);
-        throw new Error('You have already sent a request.');
+    if (existing) {
+      res.status(400);
+      throw new Error('You have already sent a request.');
     }
 
     // Create Request
     const request = await Request.create({
-        sender: req.user._id,
-        receiver: receiverId,
-        type,
-        matchPost: matchPostId,
-        team: teamId
+      sender: req.user._id,
+      receiver: receiverId,
+      type,
+      matchPost: matchPostId
     });
 
     res.status(201).json(request);
@@ -163,79 +184,225 @@ router.post('/requests', protect, async (req, res, next) => {
 // @route   GET /api/matches/requests/inbox
 // @access  Private
 router.get('/requests/inbox', protect, async (req, res, next) => {
-    try {
-        const requests = await Request.find({ receiver: req.user._id, status: 'PENDING' })
-            .populate('sender', 'name email')
-            .populate({
-                path: 'matchPost',
-                populate: { path: 'court', select: 'name' }
-            })
-            .populate('team', 'name');
-        res.json(requests);
-    } catch (error) {
-        next(error);
-    }
+  try {
+    const requests = await Request.find({ receiver: req.user._id, status: { $in: ['PENDING', 'ACCEPTED'] } })
+      .populate('sender', 'name email matchesPlayed noShows')
+      .populate({
+        path: 'matchPost',
+        populate: { path: 'court', select: 'name' }
+      });
+    res.json(requests);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// @desc    Get My Sent Requests (Sent Challenges)
+// @route   GET /api/matches/requests/sent
+// @access  Private
+router.get('/requests/sent', protect, async (req, res, next) => {
+  try {
+    const requests = await Request.find({ sender: req.user._id, status: { $in: ['PENDING', 'ACCEPTED', 'REJECTED', 'CANCELLED'] } })
+      .populate('receiver', 'name email')
+      .populate({
+        path: 'matchPost',
+        populate: { path: 'court', select: 'name facilities' },
+        select: 'date startTime adHocTeamName mobile court'
+      }).sort({ createdAt: -1 });
+    res.json(requests);
+  } catch (error) {
+    next(error);
+  }
 });
 
 // @desc    Accept or Reject a Request
 // @route   PUT /api/matches/requests/:id
 // @access  Private
 router.put('/requests/:id', protect, async (req, res, next) => {
-    try {
-        const { status } = req.body; // 'ACCEPTED' or 'REJECTED'
-        
-        const request = await Request.findById(req.params.id);
+  try {
+    const { status } = req.body; // 'ACCEPTED' or 'REJECTED'
 
-        if(!request) {
-            res.status(404);
-            throw new Error('Request not found');
-        }
+    const request = await Request.findById(req.params.id);
 
-        // Verify receiver
-        if(request.receiver.toString() !== req.user._id.toString()) {
-            res.status(401);
-            throw new Error('Not authorized to respond to this request');
-        }
-
-        request.status = status;
-        await request.save();
-
-        if (status === 'ACCEPTED') {
-            // Case 1: Joining a Permanent Team
-            if (request.type === 'JOIN' && request.team) {
-                const team = await Team.findById(request.team);
-                if(team) {
-                    team.memberCount += 1;
-                    await team.save();
-                }
-            }
-
-            // Case 2: Joining a Match Post (Solo Player)
-            if (request.type === 'JOIN' && request.matchPost) {
-                const post = await MatchPost.findById(request.matchPost);
-                if(post && post.playersNeeded > 0) {
-                    post.playersNeeded -= 1; // Decrease needed count
-                    if(post.playersNeeded === 0) {
-                        post.status = 'Closed'; // Close if full
-                    }
-                    await post.save();
-                }
-            }
-
-            // Case 3: Challenging a Team (Match Set)
-            if (request.type === 'CHALLENGE' && request.matchPost) {
-                const post = await MatchPost.findById(request.matchPost);
-                if(post) {
-                    post.status = 'Closed'; // Match is set
-                    await post.save();
-                }
-            }
-        }
-
-        res.json(request);
-    } catch (error) {
-        next(error);
+    if (!request) {
+      res.status(404);
+      throw new Error('Request not found');
     }
+
+    // Verify receiver
+    if (request.receiver.toString() !== req.user._id.toString()) {
+      res.status(401);
+      throw new Error('Not authorized to respond to this request');
+    }
+
+    if (!['ACCEPTED', 'REJECTED'].includes(status)) {
+      res.status(400);
+      throw new Error('Invalid status');
+    }
+    if (request.status !== 'PENDING') {
+      res.status(400);
+      throw new Error('Only pending requests can be accepted/rejected');
+    }
+    const postForValidation = await MatchPost.findById(request.matchPost);
+    if (!postForValidation || !isUpcoming(postForValidation.date, postForValidation.startTime)) {
+      res.status(400);
+      throw new Error('Match is no longer upcoming.');
+    }
+
+    request.status = status;
+    await request.save();
+
+    if (status === 'ACCEPTED') {
+
+
+      // Case 3: Challenging a Team (Match Set)
+      if (request.type === 'CHALLENGE' && request.matchPost) {
+        const post = await MatchPost.findById(request.matchPost);
+        if (post) {
+          const hostHasConflict = await MatchPost.findOne({
+            user: post.user,
+            status: 'Closed',
+            date: post.date,
+            startTime: post.startTime,
+            _id: { $ne: post._id }
+          });
+          const challengerHasConflict = await MatchPost.findOne({
+            challengerUser: request.sender,
+            status: 'Closed',
+            date: post.date,
+            startTime: post.startTime,
+            _id: { $ne: post._id }
+          });
+          const senderHostingConflict = await MatchPost.findOne({
+            user: request.sender,
+            status: 'Closed',
+            date: post.date,
+            startTime: post.startTime,
+            _id: { $ne: post._id }
+          });
+          if (hostHasConflict || challengerHasConflict || senderHostingConflict) {
+            request.status = 'REJECTED';
+            await request.save();
+            res.status(400);
+            throw new Error('Cannot accept due to overlapping accepted match.');
+          }
+          post.status = 'Closed'; // Match is set
+          post.challengerUser = request.sender;
+          await post.save();
+          await Request.updateMany(
+            { matchPost: post._id, _id: { $ne: request._id }, status: 'PENDING' },
+            { status: 'REJECTED' }
+          );
+        }
+      }
+    }
+
+    res.json(request);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put('/requests/:id/cancel', protect, async (req, res, next) => {
+  try {
+    const request = await Request.findById(req.params.id);
+    if (!request) {
+      res.status(404);
+      throw new Error('Request not found');
+    }
+    if (
+      request.sender.toString() !== req.user._id.toString() &&
+      request.receiver.toString() !== req.user._id.toString()
+    ) {
+      res.status(401);
+      throw new Error('Not authorized to cancel this request');
+    }
+    const post = await MatchPost.findById(request.matchPost);
+    if (!post || !isUpcoming(post.date, post.startTime)) {
+      res.status(400);
+      throw new Error('Cannot cancel after match time.');
+    }
+    if (!['PENDING', 'ACCEPTED'].includes(request.status)) {
+      res.status(400);
+      throw new Error('Only pending/accepted requests can be cancelled');
+    }
+    const previousStatus = request.status;
+    request.status = 'CANCELLED';
+    await request.save();
+
+    if (previousStatus === 'ACCEPTED' && post.challengerUser) {
+      post.status = 'Open';
+      post.challengerUser = null;
+      post.attendanceReported = false;
+      await post.save();
+    }
+    res.json({ message: 'Request cancelled successfully' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/reminders/upcoming', protect, async (req, res, next) => {
+  try {
+    const now = new Date();
+    const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+    const closedMatches = await MatchPost.find({
+      status: 'Closed',
+      $or: [{ user: req.user._id }, { challengerUser: req.user._id }]
+    }).populate('court', 'name');
+
+    const reminders = closedMatches
+      .filter((m) => {
+        const dt = toDateTime(m.date, m.startTime);
+        return dt > now && dt <= twoHoursLater;
+      })
+      .map((m) => ({
+        matchId: m._id,
+        courtName: m.court?.name,
+        date: m.date,
+        startTime: m.startTime,
+        message: `Upcoming match at ${m.court?.name} on ${m.date} ${m.startTime}`
+      }));
+
+    res.json(reminders);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put('/:id/report-attendance', protect, async (req, res, next) => {
+  try {
+    const { challengerAttended } = req.body;
+    const match = await MatchPost.findById(req.params.id);
+    if (!match) {
+      res.status(404);
+      throw new Error('Match post not found');
+    }
+    if (match.user.toString() !== req.user._id.toString()) {
+      res.status(401);
+      throw new Error('Only host can report attendance');
+    }
+    if (match.status !== 'Closed') {
+      res.status(400);
+      throw new Error('Attendance can only be reported for closed matches');
+    }
+    if (match.attendanceReported) {
+      res.status(400);
+      throw new Error('Attendance already reported for this match');
+    }
+    if (!match.challengerUser) {
+      res.status(400);
+      throw new Error('No accepted challenger found for this match');
+    }
+
+    const inc = challengerAttended ? { matchesPlayed: 1 } : { noShows: 1 };
+    await User.findByIdAndUpdate(match.challengerUser, { $inc: inc });
+    match.attendanceReported = true;
+    await match.save();
+    res.json({ message: 'Attendance reported successfully' });
+  } catch (error) {
+    next(error);
+  }
 });
 
 module.exports = router;

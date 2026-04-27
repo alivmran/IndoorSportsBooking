@@ -197,7 +197,19 @@ body {
 .amenities-list li { background: var(--bg-input); padding: 8px 16px; border-radius: 20px; font-size: 0.9rem; border: 1px solid var(--border-color); }
 
 .booking-sidebar { position: sticky; top: 100px; }
-.booking-card { background: var(--bg-card); padding: 2rem; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+.booking-card { background: transparent; padding: 0; }
+
+/* --- BOOK SLOT UI --- */
+.book-slot-container { background: #1a1a1a; padding: 1.5rem; border-radius: 12px; border: 1px solid #333; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
+.book-slot-header { margin-bottom: 1.5rem; }
+.book-slot-header h3 { font-size: 1.4rem; font-weight: 700; color: white; margin: 0 0 5px 0; border: none; padding: 0; }
+.price-display { font-size: 1.1rem; font-weight: 600; color: #ddd; }
+.price-display span { font-size: 0.9rem; color: #888; font-weight: 400; }
+.book-slot-container .form-group label { color: #aaa; margin-bottom: 8px; }
+.book-slot-container input[type="date"] { background: #262626; border: 1px solid #444; border-radius: 8px; color: white; padding: 12px; font-weight: 500; font-family: 'Inter', sans-serif; }
+.confirm-btn-styled { background: #3b82f6; border-radius: 8px; font-weight: 600; padding: 14px; margin-top: 1rem; transition: background 0.2s; }
+.confirm-btn-styled:hover:not(:disabled) { background: #2563eb; }
+.confirm-btn-styled:disabled { background: #333; color: #666; cursor: not-allowed; }
 
 /* --- FORMS (Login/Register) --- */
 .form-container { 
@@ -258,6 +270,28 @@ body {
 }
 @media (max-width: 900px) { .dashboard-layout { grid-template-columns: 1fr; } }
 
+@media (max-width: 900px) {
+    .navbar {
+        padding: 0.75rem 1rem;
+        height: auto;
+        min-height: 70px;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .links {
+        width: 100%;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+        gap: 0.8rem;
+    }
+    .container { padding: 1rem; }
+    .card-header { flex-wrap: wrap; gap: 8px; }
+    .bookings-table th, .bookings-table td { padding: 0.65rem; font-size: 0.88rem; }
+    .hero-banner { height: 240px; }
+    .hero-banner h1 { font-size: 1.7rem; }
+    .hero-banner p { font-size: 0.95rem; }
+}
+
 /* --- COMMON UI ELEMENTS --- */
 .add-btn, .book-btn, .confirm-btn { width: 100%; background: var(--primary-color); color: white; border: none; padding: 10px; border-radius: 6px; font-weight: 600; cursor: pointer; display: block; text-align: center; }
 .add-btn { width: auto; display: inline-block; padding: 8px 16px; }
@@ -292,7 +326,7 @@ body {
 .status.rejected { background: rgba(239, 68, 68, 0.2); color: #f87171; }
 
 /* --- FOOTER --- */
-.site-footer { background: var(--bg-card); border-top: 1px solid var(--border-color); padding: 3rem 2rem 1rem; margin-top: 4rem; }
+.site-footer { background: var(--bg-card); border-top: 1px solid var(--border-color); padding: 1.5rem 2rem 0.5rem; margin-top: 2rem; }
 .footer-content { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 2rem; }
 .footer-section h3 { color: var(--primary-color); margin-bottom: 1rem; }
 .footer-section p { color: var(--text-secondary); margin-bottom: 0.5rem; }

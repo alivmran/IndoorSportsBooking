@@ -7,9 +7,7 @@ const AdminBookings = () => {
   const [filteredBookings, setFilteredBookings] = useState([]);
   const [filterDays, setFilterDays] = useState('current'); // 'current', '7', '15', '30'
 
-  useEffect(() => {
-    fetchBookings();
-  }, []);
+
 
   const fetchBookings = async () => {
     try {
@@ -49,6 +47,10 @@ const AdminBookings = () => {
     setFilteredBookings(result);
     setFilterDays(days);
   };
+
+  useEffect(() => {
+    fetchBookings();
+  }, []);
 
   const handleStatusUpdate = async (id, status) => {
       try {

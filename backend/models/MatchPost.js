@@ -6,13 +6,13 @@ const matchPostSchema = mongoose.Schema({
   court: { type: mongoose.Schema.Types.ObjectId, ref: 'Court', required: true },
   date: { type: String, required: true },
   startTime: { type: String, required: true },
-  teamName: { type: String, required: true },
+  adHocTeamName: { type: String, required: true },
   mobile: { type: String, required: true },
   
-  // Logic Update
-  lookingForPlayers: { type: Boolean, default: false }, // Checkbox
-  playersNeeded: { type: Number, default: 0 },          // If checked
-  opponentSize: { type: Number, default: 0 },           // If NOT checked (looking for team)
+  mySquadSize: { type: Number, required: true },
+  opponentSquadSize: { type: Number, required: true },
+  challengerUser: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  attendanceReported: { type: Boolean, default: false },
   
   status: { type: String, enum: ['Open', 'Closed'], default: 'Open' }
 }, { timestamps: true });

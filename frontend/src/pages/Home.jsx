@@ -4,6 +4,15 @@ import API from '../api/axios';
 import AuthContext from '../context/AuthContext';
 import { toast } from 'react-toastify';
 
+const to12Hour = (time24 = '00:00') => {
+  const [hourRaw] = time24.split(':').map(Number);
+  const hour = Number.isNaN(hourRaw) ? 0 : hourRaw;
+  const normalized = hour % 24;
+  const suffix = normalized >= 12 ? 'PM' : 'AM';
+  const hour12 = normalized % 12 || 12;
+  return `${hour12}:00 ${suffix}`;
+};
+
 const Home = () => {
   const [courts, setCourts] = useState([]);
   const [filteredCourts, setFilteredCourts] = useState([]);
@@ -19,12 +28,20 @@ const Home = () => {
   // ... (keep admin state and handlers from previous code if needed, simplified here for brevity of the new feature) ...
 
   useEffect(() => {
+    if (user && user.role === 'manager') {
+      navigate('/manager/dashboard');
+    } else if (user && (user.role === 'admin' || user.isAdmin)) {
+      navigate('/admin/dashboard');
+    }
+  }, [user, navigate]);
+
+  useEffect(() => {
     const fetchCourts = async () => {
       try {
         const { data } = await API.get('/courts');
         setCourts(data);
         setFilteredCourts(data);
-      } catch (error) {
+      } catch {
         toast.error('Failed to load courts');
       }
     };
@@ -37,7 +54,7 @@ const Home = () => {
 
     // 1. Filter by Sport Type
     if (filterType !== 'All') {
-        result = result.filter(court => court.sportType === filterType);
+        result = result.filter(court => (court.facilities || []).includes(filterType));
     }
 
     // 2. Filter by Search Name
@@ -87,7 +104,7 @@ const Home = () => {
           >
             <div className="card-header">
                 <h3>{court.name}</h3>
-                <span className="badge">{court.sportType}</span>
+                <span className="badge">{(court.facilities || []).join(', ')}</span>
             </div>
             <div className="card-body">
                 {court.images && court.images.length > 0 ? (
@@ -97,7 +114,10 @@ const Home = () => {
                 )}
                 
                 <p className="location-tag">📍 {court.location || 'Karachi'}</p>
-                <p className="price">${court.pricePerHour} <span className="per-hr">/ hour</span></p>
+                <p style={{ margin:'6px 0 0 0', color:'#93c5fd', fontSize:'0.85rem', fontWeight:'600' }}>
+                  🕒 Open: {to12Hour(court.operationalStartTime || '00:00')} - {to12Hour(court.operationalEndTime || '24:00')}
+                </p>
+                <p className="price">PKR {court.pricePerHour} <span className="per-hr">/ hour</span></p>
             </div>
             <div className="card-footer">
                  <button className="book-btn">View Details</button>

@@ -11,12 +11,14 @@ const userSchema = mongoose.Schema({
     enum: ['user', 'manager', 'admin'], 
     default: 'user' 
   },
+  matchesPlayed: { type: Number, default: 0 },
+  noShows: { type: Number, default: 0 },
   // If manager, which court do they manage?
   managedCourt: { type: mongoose.Schema.Types.ObjectId, ref: 'Court' } 
 }, { timestamps: true });
 
-userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) next();
+userSchema.pre('save', async function () {
+  if (!this.isModified('password')) return;
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
 });

@@ -14,8 +14,8 @@ router.get('/', async (req, res, next) => {
 
 router.post('/', protect, admin, async (req, res, next) => {
   try {
-    const { name, sportType, pricePerHour, description } = req.body;
-    const court = new Court({ name, sportType, pricePerHour, description });
+    const { name, facilities, pricePerHour, description } = req.body;
+    const court = new Court({ name, facilities, pricePerHour, description });
     const createdCourt = await court.save();
     res.status(201).json(createdCourt);
   } catch (error) {
@@ -25,12 +25,12 @@ router.post('/', protect, admin, async (req, res, next) => {
 
 router.put('/:id', protect, admin, async (req, res, next) => {
   try {
-    const { name, sportType, pricePerHour, description } = req.body;
+    const { name, facilities, pricePerHour, description } = req.body;
     const court = await Court.findById(req.params.id);
 
     if (court) {
       court.name = name || court.name;
-      court.sportType = sportType || court.sportType;
+      court.facilities = facilities || court.facilities;
       court.pricePerHour = pricePerHour || court.pricePerHour;
       court.description = description || court.description;
       const updatedCourt = await court.save();

@@ -15,7 +15,6 @@ const Navbar = () => {
   const isManager = user && user.role === 'manager';
   const isUser = user && user.role === 'user'; // Or standard user
 
-  // Home Link Logic
   const goHome = () => {
       if(isSuperAdmin) navigate('/admin/dashboard');
       else if(isManager) navigate('/manager/dashboard');
@@ -26,7 +25,7 @@ const Navbar = () => {
     <nav className="navbar">
       <div className="logo-container" onClick={goHome}>
         <img src="/Artboard1.png" alt="Logo" className="logo-img" />
-        <span className="logo-text">SportsBooking</span>
+        <span className="logo-text">Khello Karachi</span>
       </div>
       
       <div className="links">
