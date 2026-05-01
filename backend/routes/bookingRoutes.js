@@ -3,6 +3,13 @@ const router = express.Router();
 const Booking = require('../models/Booking');
 const Court = require('../models/Court');
 const { protect, admin, manager } = require('../middleware/authMiddleware');
+const rateLimit = require('express-rate-limit');
+
+const bookingLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 15, // max 15 bookings per hour per IP
+  message: 'Too many bookings created from this IP, please try again after an hour'
+});
 
 const parseHour = (timeString) => {
   if (!timeString || typeof timeString !== 'string') return null;
@@ -110,7 +117,7 @@ router.get('/availability', async (req, res, next) => {
 
 // @desc    Create Online Booking
 // @access  User
-router.post('/', protect, async (req, res, next) => {
+router.post('/', protect, bookingLimiter, async (req, res, next) => {
   try {
     const { courtId, date, timeBlocks, totalPrice, facility } = req.body;
 
@@ -237,43 +244,115 @@ router.get('/mybookings', protect, async (req, res, next) => {
   }
 });
 
-// @desc    Update Booking (Reschedule)
+// @desc    Request Reschedule
 // @access  User
-router.put('/:id', protect, async (req, res, next) => {
+router.put('/:id/reschedule', protect, async (req, res, next) => {
   try {
     const booking = await Booking.findById(req.params.id);
-    if(booking){
-        if(booking.user.toString() !== req.user._id.toString()){
-            res.status(401); throw new Error('Not authorized');
-        }
-
-        const newDate = req.body.date || booking.date;
-        const newStart = req.body.startTime || booking.startTime;
-
-        // FIXED: Check conflict for the NEW time
-        const conflict = await Booking.findOne({
-            court: booking.court,
-            facility: booking.facility,
-            date: newDate,
-            startTime: newStart,
-            status: { $in: OCCUPIED_STATUSES },
-            _id: { $ne: booking._id } // Exclude self
-        });
-
-        if(conflict) {
-            res.status(400); throw new Error('New slot is already taken');
-        }
-
-        booking.date = newDate;
-        booking.startTime = newStart;
-        booking.endTime = req.body.endTime || booking.endTime;
-        booking.status = 'Pending'; // Reset to pending if changed
-        
-        const updatedBooking = await booking.save();
-        res.json(updatedBooking);
-    } else {
-        res.status(404); throw new Error('Booking not found');
+    if (!booking) {
+      res.status(404); throw new Error('Booking not found');
     }
+    if (booking.user.toString() !== req.user._id.toString()) {
+      res.status(401); throw new Error('Not authorized');
+    }
+
+    // Check 6-hour rule
+    const bookingDateTime = new Date(`${booking.date}T${booking.startTime}`);
+    const now = new Date();
+    const diffHours = (bookingDateTime - now) / (1000 * 60 * 60);
+    if (diffHours < 6) {
+      res.status(400); throw new Error('Cannot reschedule less than 6 hours before booked time.');
+    }
+
+    const { date, startTime, endTime } = req.body;
+    
+    // Check conflict for the new slot
+    const conflict = await Booking.findOne({
+      court: booking.court,
+      facility: booking.facility,
+      date: date,
+      startTime: startTime,
+      status: { $in: OCCUPIED_STATUSES },
+      _id: { $ne: booking._id }
+    });
+
+    if (conflict) {
+      res.status(400); throw new Error('New slot is already taken');
+    }
+
+    booking.status = 'Reschedule Requested';
+    booking.rescheduleDetails = { date, startTime, endTime };
+    const updatedBooking = await booking.save();
+
+    // Create Notification for Manager
+    const Notification = require('../models/Notification');
+    const court = await Court.findById(booking.court);
+    if (court && court.manager) {
+      const notif = new Notification({
+        recipient: court.manager,
+        message: `User requested to reschedule booking to ${date} at ${startTime}.`,
+        type: 'booking'
+      });
+      await notif.save();
+      const io = req.app.get('io');
+      const userSockets = req.app.get('userSockets');
+      if (io && userSockets && userSockets.has(court.manager.toString())) {
+        io.to(userSockets.get(court.manager.toString())).emit('newNotification', notif);
+      }
+    }
+
+    res.json(updatedBooking);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// @desc    Accept/Reject Reschedule
+// @access  Manager
+router.put('/:id/reschedule-response', protect, manager, async (req, res, next) => {
+  try {
+    const { accept } = req.body;
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) {
+      res.status(404); throw new Error('Booking not found');
+    }
+
+    const court = await Court.findById(booking.court);
+    if (!court || (req.user.role === 'manager' && court.manager.toString() !== req.user._id.toString())) {
+      res.status(401); throw new Error('Not authorized for this court');
+    }
+
+    if (booking.status !== 'Reschedule Requested') {
+      res.status(400); throw new Error('No reschedule requested for this booking.');
+    }
+
+    const Notification = require('../models/Notification');
+    if (accept) {
+      booking.date = booking.rescheduleDetails.date;
+      booking.startTime = booking.rescheduleDetails.startTime;
+      booking.endTime = booking.rescheduleDetails.endTime;
+      booking.status = 'Approved';
+    } else {
+      booking.status = 'Approved'; // Return to previous state
+    }
+    booking.rescheduleDetails = null;
+    const updatedBooking = await booking.save();
+
+    // Notify User
+    const msg = accept ? `Your reschedule request for ${court.name} was approved.` : `Your reschedule request for ${court.name} was rejected.`;
+    const notif = new Notification({
+      recipient: booking.user,
+      message: msg,
+      type: 'booking'
+    });
+    await notif.save();
+    const io = req.app.get('io');
+    const userSockets = req.app.get('userSockets');
+    if (io && userSockets && userSockets.has(booking.user.toString())) {
+      io.to(userSockets.get(booking.user.toString())).emit('newNotification', notif);
+    }
+
+    res.json(updatedBooking);
   } catch (error) {
     next(error);
   }
@@ -399,6 +478,23 @@ router.put('/:id/supply-refund-info', protect, async (req, res, next) => {
     booking.refundContactNumber = refundContactNumber;
     booking.status = 'Refund Pending';
     const updatedBooking = await booking.save();
+
+    const Notification = require('../models/Notification');
+    const court = await Court.findById(booking.court);
+    if (court && court.manager) {
+      const notif = new Notification({
+        recipient: court.manager,
+        message: `User provided refund details for booking at ${court.name}. Action required.`,
+        type: 'booking'
+      });
+      await notif.save();
+      const io = req.app.get('io');
+      const userSockets = req.app.get('userSockets');
+      if (io && userSockets && userSockets.has(court.manager.toString())) {
+        io.to(userSockets.get(court.manager.toString())).emit('newNotification', notif);
+      }
+    }
+
     res.json(updatedBooking);
   } catch (error) {
     next(error);
@@ -449,6 +545,21 @@ router.put('/:id/complete-refund', protect, manager, async (req, res, next) => {
     booking.refundTransactionId = refundTransactionId;
     booking.status = 'Refund Claimed';
     const updatedBooking = await booking.save();
+
+    const Notification = require('../models/Notification');
+    const courtData = await Court.findById(booking.court);
+    const notif = new Notification({
+      recipient: booking.user,
+      message: `Refund sent for ${courtData.name}. Please verify receipt.`,
+      type: 'booking'
+    });
+    await notif.save();
+    const io = req.app.get('io');
+    const userSockets = req.app.get('userSockets');
+    if (io && userSockets && userSockets.has(booking.user.toString())) {
+      io.to(userSockets.get(booking.user.toString())).emit('newNotification', notif);
+    }
+
     res.json(updatedBooking);
   } catch (error) {
     next(error);
@@ -477,6 +588,26 @@ router.put('/:id/verify-refund', protect, async (req, res, next) => {
     } else {
       booking.status = 'Disputed';
       booking.disputeReason = disputeReason;
+      
+      const Notification = require('../models/Notification');
+      const User = require('../models/User');
+      const admins = await User.find({ role: 'admin' });
+      const court = await Court.findById(booking.court);
+      
+      const io = req.app.get('io');
+      const userSockets = req.app.get('userSockets');
+      
+      for (const admin of admins) {
+        const notif = new Notification({
+          recipient: admin._id,
+          message: `Dispute created by user for booking at ${court ? court.name : 'Unknown Court'}. Reason: ${disputeReason}`,
+          type: 'booking'
+        });
+        await notif.save();
+        if (io && userSockets && userSockets.has(admin._id.toString())) {
+          io.to(userSockets.get(admin._id.toString())).emit('newNotification', notif);
+        }
+      }
     }
     const updatedBooking = await booking.save();
     res.json(updatedBooking);

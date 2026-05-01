@@ -1,5 +1,12 @@
 const mongoose = require('mongoose');
 
+const reviewSchema = mongoose.Schema({
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  name: { type: String, required: true },
+  rating: { type: Number, required: true },
+  comment: { type: String, required: true }
+}, { timestamps: true });
+
 const courtSchema = mongoose.Schema({
   name: { type: String, required: true }, 
   facilities: [{
@@ -19,7 +26,10 @@ const courtSchema = mongoose.Schema({
   description: { type: String },
   images: [{ type: String }], 
   amenities: [{ type: String }], 
-  manager: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+  manager: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  reviews: [reviewSchema],
+  rating: { type: Number, default: 0 },
+  numReviews: { type: Number, default: 0 }
 }, { timestamps: true });
 
 courtSchema.path('facilities').validate(function (value) {

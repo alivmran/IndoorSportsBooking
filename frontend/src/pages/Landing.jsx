@@ -20,7 +20,7 @@ const Landing = () => {
     const fetchFeatured = async () => {
       try {
         const { data } = await API.get('/courts');
-        setFeaturedCourts(data.slice(0, 4)); 
+        setFeaturedCourts(data.courts ? data.courts.slice(0, 4) : data.slice(0, 4));
       } catch {
         console.error('Error fetching courts');
       }

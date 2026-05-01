@@ -49,6 +49,7 @@ const CourtDetails = () => {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
   const [court, setCourt] = useState(null);
+  const [activeImage, setActiveImage] = useState(null);
   
   const [date, setDate] = useState('');
   const [facility, setFacility] = useState('');
@@ -71,9 +72,10 @@ const CourtDetails = () => {
   useEffect(() => {
     const fetchCourt = async () => {
       try {
-        const { data } = await API.get('/courts');
+        const { data } = await API.get('/courts?all=true');
         const found = data.find(c => c._id === id);
         setCourt(found);
+        if (found?.images?.length > 0) setActiveImage(found.images[0]);
         setFacility(found?.facilities?.[0] || '');
         setActivePrice(found?.pricePerHour || 0);
       } catch (error) { console.error(error); }
@@ -188,9 +190,21 @@ const CourtDetails = () => {
         
         <div className="details-layout">
           <div className="left-column">
-            <div className="gallery-box">
-                {court.images?.[0] ? <img src={court.images[0]} className="main-image"/> : <div className="placeholder-large">No Image</div>}
+            <div className="gallery-box" style={{marginBottom:'0'}}>
+                {activeImage ? <img src={activeImage} className="main-image"/> : <div className="placeholder-large">No Image</div>}
             </div>
+            {court.images && court.images.length > 1 && (
+              <div style={{display:'flex', gap:'10px', marginTop:'10px', overflowX:'auto', paddingBottom:'10px'}}>
+                {court.images.map((img, idx) => (
+                  <img 
+                    key={idx} 
+                    src={img} 
+                    onClick={() => setActiveImage(img)}
+                    style={{width:'80px', height:'80px', objectFit:'cover', borderRadius:'8px', cursor:'pointer', border: activeImage === img ? '2px solid #3b82f6' : '2px solid transparent'}} 
+                  />
+                ))}
+              </div>
+            )}
             
             <div className="info-box" style={{marginTop:'2rem'}}>
                 <h3>About this Venue</h3>
@@ -219,7 +233,24 @@ const CourtDetails = () => {
                       />
                     ) : null}
                     <div style={{marginTop:'8px'}}>
-                      <a href={court.googleMapLink} target="_blank" rel="noreferrer" style={{color:'#60a5fa'}}>Open in Google Maps</a>
+                      <a href={getEmbedMapUrl(court.googleMapLink) || court.googleMapLink} target="_blank" rel="noreferrer" style={{color:'#60a5fa'}}>Open in Google Maps</a>
+                    </div>
+                  </div>
+                )}
+                {court.reviews && court.reviews.length > 0 && (
+                  <div style={{marginTop:'2rem'}}>
+                    <h3>Reviews ({court.numReviews}) - {court.rating?.toFixed(1)} ⭐</h3>
+                    <div style={{display:'flex', flexDirection:'column', gap:'12px', marginTop:'12px'}}>
+                      {court.reviews.map(r => (
+                        <div key={r._id} style={{padding:'12px', background:'rgba(255,255,255,0.05)', borderRadius:'8px', border:'1px solid #333'}}>
+                          <div style={{display:'flex', justifyContent:'space-between', marginBottom:'8px'}}>
+                            <strong>{r.name}</strong>
+                            <span style={{color:'#facc15'}}>{'⭐'.repeat(r.rating)}</span>
+                          </div>
+                          <p style={{margin:0, color:'#ddd', fontSize:'0.9rem'}}>{r.comment}</p>
+                          <small style={{color:'#888', display:'block', marginTop:'8px'}}>{new Date(r.createdAt).toLocaleDateString()}</small>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}

@@ -157,7 +157,7 @@ body {
 .card-body { padding: 1.25rem; flex: 1; display: flex; flex-direction: column; gap: 8px; }
 .price { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin: 0; }
 .per-hr { font-size: 0.875rem; font-weight: 400; color: var(--text-secondary); }
-.desc { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.desc { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .location-tag { font-size: 0.85rem; color: var(--text-secondary); display: block; margin-bottom: 5px; }
 
 .card-footer { padding: 1rem; background: rgba(0,0,0,0.2); border-top: 1px solid var(--border-color); margin-top: auto; }
@@ -332,3 +332,18 @@ body {
 .footer-section p { color: var(--text-secondary); margin-bottom: 0.5rem; }
 .footer-btn { display: inline-block; background: var(--bg-input); color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; margin-top: 10px; border: 1px solid var(--border-color); }
 .footer-bottom { text-align: center; margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border-color); font-size: 0.9rem; color: #666; }
+
+/* --- NOTIFICATIONS --- */
+.notification-wrapper { position: relative; }
+.notification-badge { position: absolute; top: -5px; right: -5px; background: var(--danger-color); color: white; border-radius: 50%; padding: 2px 6px; font-size: 0.7rem; font-weight: bold; }
+.notification-dropdown { position: absolute; top: 40px; right: 0; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; width: 300px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); z-index: 2000; overflow: hidden; }
+.dropdown-header { padding: 10px 15px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+.dropdown-header h4 { margin: 0; font-size: 1rem; color: var(--text-primary); }
+.mark-all-btn { background: transparent; border: none; color: var(--primary-color); cursor: pointer; font-size: 0.8rem; }
+.dropdown-body { max-height: 300px; overflow-y: auto; }
+.notification-item { padding: 10px 15px; border-bottom: 1px solid var(--border-color); cursor: pointer; transition: background 0.2s; text-align: left; }
+.notification-item:hover { background: var(--bg-input); }
+.notification-item.unread { background: rgba(59, 130, 246, 0.1); border-left: 3px solid var(--primary-color); }
+.notification-item p { margin: 0 0 5px 0; font-size: 0.9rem; color: var(--text-primary); }
+.notification-item .time { font-size: 0.75rem; color: var(--text-secondary); }
+.no-notifs { padding: 15px; text-align: center; color: var(--text-secondary); font-size: 0.9rem; margin: 0; }

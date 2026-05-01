@@ -4,6 +4,7 @@ const User = require('../models/User');
 const Court = require('../models/Court');
 const Booking = require('../models/Booking');
 const { protect, admin } = require('../middleware/authMiddleware');
+const { upload } = require('../config/cloudinary');
 
 const parseHour = (timeString) => {
   if (!timeString || typeof timeString !== 'string') return null;
@@ -31,7 +32,7 @@ router.get('/data', protect, admin, async (req, res, next) => {
 });
 
 // @desc    Create Court & Manager (FIXED)
-router.post('/create-court', protect, admin, async (req, res, next) => {
+router.post('/create-court', protect, admin, upload.array('images', 5), async (req, res, next) => {
   try {
     const {
       courtName,
@@ -72,12 +73,15 @@ router.post('/create-court', protect, admin, async (req, res, next) => {
         name: managerName, email: managerEmail, password, role: 'manager'
     });
 
+    // Images from Cloudinary
+    const imageUrls = req.files ? req.files.map(file => file.path) : [];
+
     // Create Court
     const court = await Court.create({
         name: courtName,
         location,
-        facilities,
-        amenities,
+        facilities: Array.isArray(facilities) ? facilities : (facilities ? [facilities] : []),
+        amenities: Array.isArray(amenities) ? amenities : (amenities ? [amenities] : []),
         googleMapLink,
         paymentBank,
         paymentAccountTitle,
@@ -87,7 +91,8 @@ router.post('/create-court', protect, admin, async (req, res, next) => {
         operationalEndTime: operationalEndTime || '24:00',
         pricePerHour,
         priceWeekend: priceWeekend || pricePerHour, 
-        manager: manager._id, images: []
+        manager: manager._id, 
+        images: imageUrls
     });
 
     manager.managedCourt = court._id;
@@ -96,11 +101,16 @@ router.post('/create-court', protect, admin, async (req, res, next) => {
     res.status(201).json({ message: 'Created', court, manager: { email: manager.email, password } });
 
   } catch (error) {
-    // Handle Duplicate Key Error (E11000)
+    console.error('Create Court Error:', error);
     if (error.code === 11000) {
         res.status(400);
         next(new Error(`Duplicate Data: Email or Court Name already exists.`));
+    } else if (error.name === 'ValidationError') {
+        res.status(400);
+        const messages = Object.values(error.errors).map(val => val.message);
+        next(new Error(`Validation Failed: ${messages.join(', ')}`));
     } else {
+        res.status(500);
         next(error);
     }
   }
@@ -171,9 +181,20 @@ router.post('/reset-manager-password', protect, admin, async (req, res, next) =>
 });
 
 // @desc    Update Court
-router.put('/court/:id', protect, admin, async (req, res, next) => {
+router.put('/court/:id', protect, admin, upload.array('images', 5), async (req, res, next) => {
     try {
-        const court = await Court.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        const updateData = { ...req.body };
+        if (req.body.facilities) {
+          updateData.facilities = Array.isArray(req.body.facilities) ? req.body.facilities : [req.body.facilities];
+        }
+        if (req.body.amenities) {
+          updateData.amenities = Array.isArray(req.body.amenities) ? req.body.amenities : [req.body.amenities];
+        }
+        if (req.files && req.files.length > 0) {
+          const imageUrls = req.files.map(file => file.path);
+          updateData.images = imageUrls;
+        }
+        const court = await Court.findByIdAndUpdate(req.params.id, updateData, { new: true });
         res.json(court);
     } catch (error) { next(error); }
 });

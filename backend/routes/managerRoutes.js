@@ -29,7 +29,8 @@ router.get('/dashboard', protect, manager, async (req, res, next) => {
       courtId: court._id,
       court,
       stats: { totalBookings, activeBookings: approvedBookings.length, pendingRequests, totalRevenue },
-      recentActivity: bookings.slice(0, 10) // Top 10 recent
+      recentActivity: bookings.slice(0, 10), // Top 10 recent
+      approvedBookings
     });
   } catch (error) {
     next(error);

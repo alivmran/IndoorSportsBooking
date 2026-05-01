@@ -14,6 +14,7 @@ const AdminDashboard = () => {
     operationalStartTime: '00:00', operationalEndTime: '24:00',
     pricePerHour: '', priceWeekend: '', managerName: '', managerEmail: ''
   });
+  const [images, setImages] = useState([]);
   const hourOptions = Array.from({ length: 25 }, (_, h) => `${h.toString().padStart(2, '0')}:00`);
 
   const fetchData = async () => {
@@ -28,7 +29,19 @@ const AdminDashboard = () => {
   const handleCreate = async (e) => {
     e.preventDefault();
     try {
-      const res = await API.post('/admin/create-court', form);
+      const formData = new FormData();
+      Object.keys(form).forEach(key => {
+        if (key === 'facilities' || key === 'amenities') {
+          form[key].forEach(item => formData.append(key, item));
+        } else {
+          formData.append(key, form[key]);
+        }
+      });
+      for (let i = 0; i < images.length; i++) {
+        formData.append('images', images[i]);
+      }
+
+      const res = await API.post('/admin/create-court', formData);
       toast.success(`Created! Manager Password: ${res.data.manager.password}`);
       setForm({
         courtName: '', location: '', facilities: ['Futsal'], googleMapLink: '',
@@ -37,6 +50,7 @@ const AdminDashboard = () => {
         operationalStartTime: '00:00', operationalEndTime: '24:00',
         pricePerHour: '', priceWeekend: '', managerName: '', managerEmail: ''
       });
+      setImages([]);
       fetchData();
     } catch (error) { toast.error(error.response?.data?.message || 'Failed'); }
   };
@@ -118,7 +132,7 @@ const AdminDashboard = () => {
                     <div className="form-group"><label>Court Name</label><input value={form.courtName} onChange={e=>setForm({...form, courtName:e.target.value})} required /></div>
                     <div className="form-group">
                       <label>Facilities</label>
-                      <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(120px, 1fr))', gap:'8px', marginTop:'8px'}}>
+                      <div style={{display:'flex', flexWrap:'wrap', gap:'8px', marginTop:'8px'}}>
                         {['Futsal', 'Padel', 'Cricket'].map((sport) => (
                           <button
                             key={sport}
@@ -145,7 +159,7 @@ const AdminDashboard = () => {
                 <div className="form-group"><label>Google Maps Link</label><input value={form.googleMapLink} onChange={e=>setForm({...form, googleMapLink:e.target.value})} placeholder="https://maps.google.com/..." /></div>
                 <div className="form-group">
                   <label>Amenities (select up to 5)</label>
-                  <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(120px, 1fr))', gap:'8px', marginTop:'8px'}}>
+                  <div style={{display:'flex', flexWrap:'wrap', gap:'8px', marginTop:'8px'}}>
                     {['Parking', 'Showers', 'Cafe', 'Floodlights', 'Changing Room'].map((amenity) => (
                       <button
                         key={amenity}
@@ -199,6 +213,10 @@ const AdminDashboard = () => {
                     <div className="form-group"><label>Name</label><input value={form.managerName} onChange={e=>setForm({...form, managerName:e.target.value})} required /></div>
                     <div className="form-group"><label>Email</label><input type="email" value={form.managerEmail} onChange={e=>setForm({...form, managerEmail:e.target.value})} required /></div>
                 </div>
+                <div className="form-group">
+                    <label>Court Images (Max 5)</label>
+                    <input type="file" multiple accept="image/*" onChange={(e) => setImages(e.target.files)} style={{background: 'var(--bg-input)', padding: '10px'}} />
+                </div>
                 <button type="submit" className="confirm-btn">Create System</button>
             </form>
         </div>
@@ -206,7 +224,7 @@ const AdminDashboard = () => {
         {/* COURT LIST WITH MANAGE BUTTON */}
         <div className="activity-section">
             <h2>Active Facilities</h2>
-            <div className="courts-list" style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(280px, 1fr))', gap:'1rem'}}>
+            <div className="courts-list" style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(320px, 1fr))', gap:'1.5rem'}}>
                 {data.courts.length === 0 && <p style={{color:'#888'}}>No facilities active.</p>}
                 {data.courts.map(court => (
                     <div key={court._id} style={{background:'var(--bg-input)', padding:'1rem', borderRadius:'8px', border:'1px solid var(--border-color)'}}>

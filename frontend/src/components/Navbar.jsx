@@ -1,6 +1,9 @@
-import { useContext } from 'react';
+import { useContext, useEffect, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
+import API from '../api/axios';
+import { io } from 'socket.io-client';
+import { toast } from 'react-toastify';
 
 const Navbar = () => {
   const { user, logout } = useContext(AuthContext);
@@ -14,6 +17,64 @@ const Navbar = () => {
   const isSuperAdmin = user && (user.role === 'admin' || user.isAdmin);
   const isManager = user && user.role === 'manager';
   const isUser = user && user.role === 'user'; // Or standard user
+
+  const [notifications, setNotifications] = useState([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (user && user.token) {
+      // Create a global socket or connect here
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const socket = io(apiUrl);
+      socket.emit('register', user._id);
+      
+      socket.on('newNotification', (notification) => {
+        setNotifications((prev) => [notification, ...prev]);
+        setUnreadCount((prev) => prev + 1);
+        toast.info(notification.message);
+      });
+      
+      return () => socket.disconnect();
+    }
+  }, [user]);
+
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      if (user && user.token) {
+        try {
+          const res = await API.get('/notifications');
+          setNotifications(res.data);
+          setUnreadCount(res.data.filter(n => !n.isRead).length);
+        } catch (error) {
+          console.error('Failed to fetch notifications');
+        }
+      }
+    };
+    fetchNotifications();
+  }, [user]);
+
+  const markAsRead = async (id, link) => {
+    try {
+      await API.put(`/notifications/${id}/read`);
+      setNotifications(prev => prev.map(n => n._id === id ? { ...n, isRead: true } : n));
+      setUnreadCount(prev => Math.max(0, prev - 1));
+      setShowDropdown(false);
+      if (link) navigate(link);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const markAllAsRead = async () => {
+     try {
+        await API.put('/notifications/read-all');
+        setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+        setUnreadCount(0);
+     } catch (error) {
+        console.error(error);
+     }
+  };
 
   const goHome = () => {
       if(isSuperAdmin) navigate('/admin/dashboard');
@@ -58,7 +119,38 @@ const Navbar = () => {
 
         {/* --- AUTH --- */}
         {user ? (
-            <button onClick={handleLogout} style={{marginLeft:'10px'}}>Logout</button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                <div className="notification-wrapper" style={{ position: 'relative' }}>
+                    <button 
+                       onClick={() => setShowDropdown(!showDropdown)} 
+                       style={{ background: 'transparent', border: 'none', color: 'white', fontSize: '1.2rem', cursor: 'pointer', position: 'relative' }}>
+                       🔔
+                       {unreadCount > 0 && <span className="notification-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>}
+                    </button>
+                    
+                    {showDropdown && (
+                        <div className="notification-dropdown">
+                            <div className="dropdown-header">
+                                <h4>Notifications</h4>
+                                {unreadCount > 0 && <button onClick={markAllAsRead} className="mark-all-btn">Mark all read</button>}
+                            </div>
+                            <div className="dropdown-body">
+                                {!Array.isArray(notifications) || notifications.length === 0 ? (
+                                    <p className="no-notifs">No new notifications</p>
+                                ) : (
+                                    notifications.map(n => (
+                                        <div key={n._id} className={`notification-item ${!n.isRead ? 'unread' : ''}`} onClick={() => markAsRead(n._id, n.link)}>
+                                            <p>{n.message}</p>
+                                            <span className="time">{new Date(n.createdAt).toLocaleDateString()}</span>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+                <button onClick={handleLogout}>Logout</button>
+            </div>
         ) : (
            <Link to="/login" className="login-link">Login</Link>
         )}

@@ -22,24 +22,37 @@ const FindTeam = () => {
     opponentSquadSize: 5
   });
 
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
   const fetchData = async () => {
     try {
-      const { data } = await API.get('/matches/posts');
-      setMatchPosts(data);
+      const { data } = await API.get(`/matches/posts?page=${page}&limit=6`);
+      if (data.posts) {
+        setMatchPosts(data.posts);
+        setTotalPages(data.pages);
+      } else {
+        setMatchPosts(data);
+      }
     } catch (error) {
       console.error(error);
     }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { fetchData(); }, [page]);
 
   const openCreateModal = async () => {
     try {
       const { data } = await API.get('/bookings/mybookings');
-      const approved = data.filter(b => b.status === 'Approved');
+      const now = new Date();
+      const approved = data.filter(b => {
+        if (b.status !== 'Approved') return false;
+        const bDate = new Date(`${b.date}T${b.startTime}`);
+        return bDate > now;
+      });
       
       if(approved.length === 0) {
-          toast.info("You need an Approved booking to create a post.");
+          toast.info("You need an upcoming Approved booking to create a post.");
           return;
       }
       
@@ -120,6 +133,26 @@ const FindTeam = () => {
           ))}
           {matchPosts.length === 0 && <p>No match posts available.</p>}
       </div>
+
+      {totalPages > 1 && (
+        <div style={{display:'flex', justifyContent:'center', gap:'10px', marginTop:'2rem'}}>
+          <button 
+            disabled={page === 1} 
+            onClick={() => setPage(p => p - 1)}
+            style={{padding:'8px 16px', background:'var(--bg-card)', border:'1px solid var(--border-color)', color:'white', borderRadius:'6px', cursor: page === 1 ? 'not-allowed' : 'pointer'}}
+          >
+            Previous
+          </button>
+          <span style={{padding:'8px', color:'var(--text-secondary)'}}>Page {page} of {totalPages}</span>
+          <button 
+            disabled={page === totalPages} 
+            onClick={() => setPage(p => p + 1)}
+            style={{padding:'8px 16px', background:'var(--bg-card)', border:'1px solid var(--border-color)', color:'white', borderRadius:'6px', cursor: page === totalPages ? 'not-allowed' : 'pointer'}}
+          >
+            Next
+          </button>
+        </div>
+      )}
 
       {showModal && (
         <div className="modal-overlay">

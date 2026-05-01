@@ -11,7 +11,8 @@ const Requests = () => {
   const fetchInbox = async () => {
     try {
       const { data } = await API.get('/matches/requests/inbox');
-      setRequests(data);
+      const filtered = data.filter((req) => req.matchPost?.date >= todayStr);
+      setRequests(filtered);
     } catch (error) {
       console.error(error);
     }
@@ -20,10 +21,7 @@ const Requests = () => {
   const fetchSent = async () => {
     try {
       const { data } = await API.get('/matches/requests/sent');
-      const filtered = data.filter((req) => {
-        if (req.status !== 'ACCEPTED') return true;
-        return req.matchPost?.date >= todayStr;
-      });
+      const filtered = data.filter((req) => req.matchPost?.date >= todayStr);
       setSentRequests(filtered);
     } catch (error) {
       console.error(error);

@@ -27,6 +27,9 @@ const Home = () => {
   const [showAdminModal, setShowAdminModal] = useState(false);
   // ... (keep admin state and handlers from previous code if needed, simplified here for brevity of the new feature) ...
 
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
   useEffect(() => {
     if (user && user.role === 'manager') {
       navigate('/manager/dashboard');
@@ -38,34 +41,24 @@ const Home = () => {
   useEffect(() => {
     const fetchCourts = async () => {
       try {
-        const { data } = await API.get('/courts');
-        setCourts(data);
-        setFilteredCourts(data);
+        const { data } = await API.get(`/courts?page=${page}&limit=10&search=${search}&facility=${filterType}`);
+        if (data.courts) {
+            setFilteredCourts(data.courts);
+            setTotalPages(data.pages);
+        } else {
+            setFilteredCourts(data); // fallback if it returns array directly somehow
+        }
       } catch {
         toast.error('Failed to load courts');
       }
     };
-    fetchCourts();
-  }, []);
+    
+    const delayDebounceFn = setTimeout(() => {
+      fetchCourts();
+    }, 300);
 
-  // Filter Logic
-  useEffect(() => {
-    let result = courts;
-
-    // 1. Filter by Sport Type
-    if (filterType !== 'All') {
-        result = result.filter(court => (court.facilities || []).includes(filterType));
-    }
-
-    // 2. Filter by Search Name
-    if (search) {
-        result = result.filter(court => 
-            court.name.toLowerCase().includes(search.toLowerCase())
-        );
-    }
-
-    setFilteredCourts(result);
-  }, [search, filterType, courts]);
+    return () => clearTimeout(delayDebounceFn);
+  }, [page, search, filterType]);
 
   return (
     <div className="page-container">
@@ -126,6 +119,26 @@ const Home = () => {
         ))}
         {filteredCourts.length === 0 && <p style={{color:'#888'}}>No courts found.</p>}
       </div>
+
+      {totalPages > 1 && (
+        <div style={{display:'flex', justifyContent:'center', gap:'10px', marginTop:'2rem'}}>
+          <button 
+            disabled={page === 1} 
+            onClick={() => setPage(p => p - 1)}
+            style={{padding:'8px 16px', background:'var(--bg-card)', border:'1px solid var(--border-color)', color:'white', borderRadius:'6px', cursor: page === 1 ? 'not-allowed' : 'pointer'}}
+          >
+            Previous
+          </button>
+          <span style={{padding:'8px', color:'var(--text-secondary)'}}>Page {page} of {totalPages}</span>
+          <button 
+            disabled={page === totalPages} 
+            onClick={() => setPage(p => p + 1)}
+            style={{padding:'8px 16px', background:'var(--bg-card)', border:'1px solid var(--border-color)', color:'white', borderRadius:'6px', cursor: page === totalPages ? 'not-allowed' : 'pointer'}}
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 };

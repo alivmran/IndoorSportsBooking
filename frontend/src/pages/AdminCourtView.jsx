@@ -18,6 +18,7 @@ const AdminCourtView = ({ courtId }) => {
   const [editForm, setEditForm] = useState({});
   const [blockForm, setBlockForm] = useState({ date: '', facility: '', timeBlocks: [] });
   const [unavailableSlots, setUnavailableSlots] = useState([]);
+  const [images, setImages] = useState([]);
   const hourOptions = Array.from({ length: 25 }, (_, h) => `${h.toString().padStart(2, '0')}:00`);
 
   useEffect(() => {
@@ -66,8 +67,20 @@ const AdminCourtView = ({ courtId }) => {
   const handleUpdate = async (e) => {
       e.preventDefault();
       try {
-        await API.put(`/admin/court/${courtId}`, editForm);
+        const formData = new FormData();
+        Object.keys(editForm).forEach(key => {
+          if (key === 'facilities' || key === 'amenities') {
+            (editForm[key] || []).forEach(item => formData.append(key, item));
+          } else if (editForm[key] !== undefined && editForm[key] !== null) {
+            formData.append(key, editForm[key]);
+          }
+        });
+        for (let i = 0; i < images.length; i++) {
+          formData.append('images', images[i]);
+        }
+        await API.put(`/admin/court/${courtId}`, formData);
         toast.success('Updated');
+        setImages([]);
       } 
       catch (error) { toast.error('Update failed'); }
   };
@@ -234,7 +247,12 @@ const AdminCourtView = ({ courtId }) => {
                           </select>
                         </div>
                     </div>
-                    <div className="form-group"><label>Description</label><textarea rows="4" value={editForm.description} onChange={e=>setEditForm({...editForm, description:e.target.value})} /></div>
+                    <div className="form-group"><label>Description</label><textarea rows="4" value={editForm.description || ''} onChange={e=>setEditForm({...editForm, description:e.target.value})} /></div>
+                    <div className="form-group">
+                        <label>Court Images (Max 5)</label>
+                        <input type="file" multiple accept="image/*" onChange={(e) => setImages(e.target.files)} style={{background: 'var(--bg-input)', padding: '10px'}} />
+                        <p style={{fontSize:'0.8rem', color:'#888', margin:'5px 0 0 0'}}>Uploading new images will replace existing ones.</p>
+                    </div>
                     <button className="confirm-btn">Save Changes</button>
                 </form>
             </div>

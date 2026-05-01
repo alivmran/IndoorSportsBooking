@@ -46,6 +46,11 @@ router.post('/posts', protect, async (req, res, next) => {
       throw new Error('Invalid booking or you do not own this booking');
     }
 
+    if (!isUpcoming(booking.date, booking.startTime)) {
+        res.status(400);
+        throw new Error('Cannot post a match for a past date/time.');
+    }
+
     // 2. Prevent duplicate posts for the same booking
     const existing = await MatchPost.findOne({ booking: bookingId });
     if (existing) {
@@ -80,11 +85,34 @@ router.get('/posts', async (req, res, next) => {
   try {
     await runMatchCleanup();
     const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0];
-    const posts = await MatchPost.find({ status: 'Open', date: { $gte: today } })
-      .populate('user', 'name') // Captain's name
-      .populate('court', 'name facilities location') // Court details
-      .sort({ createdAt: -1 }); // Newest first
-    res.json(posts);
+    const query = { status: 'Open', date: { $gte: today } };
+
+    if (req.query.all === 'true') {
+        const posts = await MatchPost.find(query)
+          .populate('user', 'name')
+          .populate('court', 'name facilities location')
+          .sort({ createdAt: -1 });
+        return res.json(posts);
+    }
+
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+
+    const posts = await MatchPost.find(query)
+      .populate('user', 'name')
+      .populate('court', 'name facilities location')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
+
+    const total = await MatchPost.countDocuments(query);
+
+    res.json({
+      posts,
+      page,
+      pages: Math.ceil(total / limit),
+      total
+    });
   } catch (error) {
     next(error);
   }

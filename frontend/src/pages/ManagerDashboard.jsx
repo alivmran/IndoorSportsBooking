@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import API from '../api/axios';
 import { toast } from 'react-toastify';
 import TimeSlotPicker from '../components/TimeSlotPicker';
+import { CSVLink } from 'react-csv';
 
 const parseHour = (timeString, fallback) => {
   if (!timeString || typeof timeString !== 'string') return fallback;
@@ -89,6 +90,15 @@ const ManagerDashboard = () => {
       } catch (error) { toast.error('Update failed'); }
   };
 
+  const handleRescheduleResponse = async (id, accept) => {
+      try {
+          await API.put(`/bookings/${id}/reschedule-response`, { accept });
+          toast.success(accept ? 'Reschedule Approved' : 'Reschedule Rejected');
+          const { data } = await API.get('/manager/dashboard');
+          setData(data);
+      } catch (error) { toast.error('Update failed'); }
+  };
+
   const submitRefundClaim = async (bookingId) => {
     const refundTransactionId = refundTidByBooking[bookingId];
     if (!refundTransactionId) {
@@ -109,12 +119,30 @@ const ManagerDashboard = () => {
 
   return (
     <div className="page-container">
-      <div className="header-section" style={{borderBottom:'2px solid #10b981', paddingBottom:'1rem', display:'flex', justifyContent:'space-between', gap:'12px', alignItems:'flex-start', flexWrap:'wrap'}}>
+      <div className="header-section" style={{borderBottom:'2px solid #10b981', paddingBottom:'1rem', marginBottom:'2rem', display:'flex', justifyContent:'space-between', gap:'12px', alignItems:'flex-start', flexWrap:'wrap'}}>
           <div>
             <h1 className="page-title">Manager Portal</h1>
             <p style={{color:'#aaa', marginTop:'5px'}}>Managing: <strong style={{color:'white'}}>{data.courtName}</strong></p>
           </div>
-          <span className="badge" style={{background:'rgba(16, 185, 129, 0.2)', color:'#10b981', padding:'10px 20px', whiteSpace:'nowrap'}}>ACTIVE</span>
+          <div style={{display:'flex', gap:'10px', alignItems:'center'}}>
+            {data.approvedBookings && (
+              <CSVLink 
+                data={data.approvedBookings.map(b => ({
+                  Date: b.date,
+                  Time: `${b.startTime} - ${b.endTime}`,
+                  Customer: b.user ? b.user.name : 'Manual Block',
+                  Facility: b.facility,
+                  Revenue: b.totalPrice || 0
+                }))} 
+                filename={"revenue-report.csv"}
+                className="confirm-btn" 
+                style={{background:'#2563eb', textDecoration:'none', display:'inline-block', padding:'8px 16px', fontSize:'0.9rem'}}
+              >
+                Export Revenue (CSV)
+              </CSVLink>
+            )}
+            <span className="badge" style={{background:'rgba(16, 185, 129, 0.2)', color:'#10b981', padding:'10px 20px', whiteSpace:'nowrap'}}>ACTIVE</span>
+          </div>
       </div>
 
       <div className="stats-grid">
@@ -129,7 +157,7 @@ const ManagerDashboard = () => {
             <div style={{display:'grid', gap:'12px'}}>
               {data.recentActivity.map((b) => (
                 <div key={b._id} style={{background:'#1c1c1c', border:'1px solid #353535', borderRadius:'10px', padding:'14px'}}>
-                  <div style={{display:'flex', justifyContent:'space-between', gap:'12px', flexWrap:'wrap'}}>
+                  <div style={{display:'flex', justifyContent:'space-between', gap:'12px', flexWrap:'wrap', alignItems:'flex-start'}}>
                     <div>
                       <h4 style={{margin:0, fontSize:'1.02rem'}}>{b.user ? b.user.name : 'Manual Block'}</h4>
                       <p style={{margin:'6px 0', color:'#93c5fd'}}>Facility: {b.facility}</p>
@@ -149,6 +177,20 @@ const ManagerDashboard = () => {
                       <div style={{display:'flex', gap:'10px', marginTop:'10px'}}>
                         <button onClick={() => handleStatusUpdate(b._id, 'Approved')} style={{background:'#10b981', border:'none', color:'white', padding:'8px 14px', borderRadius:'6px', cursor:'pointer', fontWeight:'700'}}>Approve</button>
                         <button onClick={() => handleStatusUpdate(b._id, 'Rejected')} style={{background:'#ef4444', border:'none', color:'white', padding:'8px 14px', borderRadius:'6px', cursor:'pointer', fontWeight:'700'}}>Cancel Booking</button>
+                      </div>
+                    </div>
+                  )}
+
+                  {b.status === 'Reschedule Requested' && (
+                    <div style={{marginTop:'12px', padding:'12px', border:'1px solid rgba(245,158,11,0.45)', borderRadius:'8px', background:'rgba(245,158,11,0.08)'}}>
+                      <div style={{fontSize:'1rem', color:'#fcd34d', fontWeight:'700'}}>Reschedule Request</div>
+                      <div style={{marginTop:'8px', fontSize:'0.96rem', color:'#e5e7eb', lineHeight:'1.6'}}>
+                        New Date: <strong>{b.rescheduleDetails?.date}</strong><br />
+                        New Time: <strong>{b.rescheduleDetails?.startTime} - {b.rescheduleDetails?.endTime}</strong>
+                      </div>
+                      <div style={{display:'flex', gap:'10px', marginTop:'10px'}}>
+                        <button onClick={() => handleRescheduleResponse(b._id, true)} style={{background:'#10b981', border:'none', color:'white', padding:'8px 14px', borderRadius:'6px', cursor:'pointer', fontWeight:'700'}}>Approve</button>
+                        <button onClick={() => handleRescheduleResponse(b._id, false)} style={{background:'#ef4444', border:'none', color:'white', padding:'8px 14px', borderRadius:'6px', cursor:'pointer', fontWeight:'700'}}>Reject</button>
                       </div>
                     </div>
                   )}

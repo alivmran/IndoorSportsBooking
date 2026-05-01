@@ -22,7 +22,9 @@ const bookingSchema = mongoose.Schema({
       'Refund Pending',
       'Refund Claimed',
       'Refunded',
-      'Disputed'
+      'Disputed',
+      'Reschedule Requested',
+      'Canceled'
     ], 
     default: 'Pending' 
   },
@@ -51,7 +53,12 @@ const bookingSchema = mongoose.Schema({
   refundAccountNumber: { type: String },
   refundContactNumber: { type: String },
   refundTransactionId: { type: String },
-  disputeReason: { type: String }
+  disputeReason: { type: String },
+  rescheduleDetails: {
+    date: String,
+    startTime: String,
+    endTime: String
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Booking', bookingSchema);

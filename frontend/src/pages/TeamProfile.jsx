@@ -31,7 +31,10 @@ const TeamProfile = () => {
     fetchData();
   }, []);
 
-  const allMatches = [...matchHistory.hosted, ...matchHistory.challenged];
+  const allMatches = [
+    ...matchHistory.hosted.map(m => ({...m, isHost: true})), 
+    ...matchHistory.challenged.map(m => ({...m, isHost: false}))
+  ];
   const todayStr = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0];
   const threeMonthsAgoDate = new Date();
   threeMonthsAgoDate.setMonth(threeMonthsAgoDate.getMonth() - 3);
@@ -180,10 +183,10 @@ const TeamProfile = () => {
                     <div className="card-header">
                         <h3>{match.court?.name}</h3>
                         <span className={`badge`} style={{ 
-                            background: match.date < todayStr ? 'rgba(59, 130, 246, 0.2)' : 'rgba(250, 204, 21, 0.2)', 
-                            color: match.date < todayStr ? '#60a5fa' : '#facc15' 
+                            background: match.date < todayStr ? (match.challengerUser ? 'rgba(59, 130, 246, 0.2)' : 'rgba(239, 68, 68, 0.2)') : 'rgba(250, 204, 21, 0.2)', 
+                            color: match.date < todayStr ? (match.challengerUser ? '#60a5fa' : '#f87171') : '#facc15' 
                         }}>
-                            {match.date < todayStr ? 'PLAYED' : 'UPCOMING'}
+                            {match.date < todayStr ? (match.challengerUser ? 'PLAYED' : 'EXPIRED') : 'UPCOMING'}
                         </span>
                     </div>
                     <div className="card-body">
@@ -193,16 +196,22 @@ const TeamProfile = () => {
                             <p style={{margin:0, fontSize:'0.85rem', color:'#888'}}>Host Team</p>
                             <p style={{margin:0, color:'white', fontWeight:'bold'}}>{match.adHocTeamName}</p>
                         </div>
-                        {match.status === 'Closed' && match.attendanceReported === false && match.challengerUser && (
+                        {match.status === 'Closed' && !match.attendanceReported && match.challengerUser && match.isHost && (
                           <div style={{marginTop:'12px', padding:'10px', border:'1px solid #3b82f6', borderRadius:'8px'}}>
                             <p style={{margin:'0 0 8px 0', color:'#bfdbfe', fontSize:'0.85rem'}}>
                               Did the challenger ({match.challengerUser?.name || 'Player'}) show up to the match?
                             </p>
                             <div style={{display:'flex', gap:'8px'}}>
-                              <button onClick={() => reportAttendance(match._id, true)} className="confirm-btn">Yes, they played</button>
-                              <button onClick={() => reportAttendance(match._id, false)} className="delete-btn">No, they flaked / No-Show</button>
+                              <button onClick={(e) => { e.stopPropagation(); reportAttendance(match._id, true); }} className="confirm-btn">Yes, they played</button>
+                              <button onClick={(e) => { e.stopPropagation(); reportAttendance(match._id, false); }} className="delete-btn">No, they flaked / No-Show</button>
                             </div>
                           </div>
+                        )}
+                        {match.status === 'Closed' && !match.attendanceReported && match.challengerUser && !match.isHost && (
+                          <div style={{marginTop:'12px', color:'#aaa', fontSize:'0.85rem', fontStyle:'italic'}}>Waiting for host to report attendance.</div>
+                        )}
+                        {match.status === 'Closed' && !match.challengerUser && (
+                          <div style={{marginTop:'12px', color:'#aaa', fontSize:'0.85rem', fontStyle:'italic'}}>Match expired without an accepted challenge.</div>
                         )}
                         {match.attendanceReported === true && (
                           <div style={{marginTop:'12px', color:'#34d399', fontSize:'0.85rem', fontWeight:'bold'}}>Attendance Reported</div>
