@@ -1,7 +1,5 @@
 # KHELLO KARACHI ⚡️
 
-![Khello Karachi Hero](https://via.placeholder.com/1000x300/1A1A1A/007BFF?text=KHELLO+KARACHI)
-
 **Karachi's first unified platform to reserve sports grounds and challenge local teams.**
 
 ## 📖 About The Platform
