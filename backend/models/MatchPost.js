@@ -13,6 +13,7 @@ const matchPostSchema = mongoose.Schema({
   opponentSquadSize: { type: Number, required: true },
   challengerUser: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   attendanceReported: { type: Boolean, default: false },
+  challengerAttended: { type: Boolean, default: false },
   
   status: { type: String, enum: ['Open', 'Closed'], default: 'Open' }
 }, { timestamps: true });

@@ -79,6 +79,64 @@ router.post('/posts', protect, async (req, res, next) => {
   }
 });
 
+// @desc    Delete a Match Post
+// @route   DELETE /api/matches/posts/:id
+// @access  Private
+router.delete('/posts/:id', protect, async (req, res, next) => {
+  try {
+    const post = await MatchPost.findById(req.params.id);
+    if (!post) {
+      res.status(404);
+      throw new Error('Match Post not found');
+    }
+
+    if (post.user.toString() !== req.user._id.toString()) {
+      res.status(401);
+      throw new Error('Not authorized to delete this post');
+    }
+
+    // Notify any accepted challenger
+    if (post.challengerUser) {
+      const challenger = await User.findById(post.challengerUser);
+      if (challenger) {
+        const msg = `${req.user.name} has cancelled the match post at ${post.court?.name || 'the court'} scheduled for ${post.date}.`;
+        sendEmail(challenger.email, 'Match Cancelled', 'Match Cancelled', msg);
+        
+        const Notification = require('../models/Notification');
+        const notif = new Notification({
+          recipient: post.challengerUser,
+          message: msg,
+          type: 'match'
+        });
+        await notif.save();
+        
+        const io = req.app.get('io');
+        const userSockets = req.app.get('userSockets');
+        if (io && userSockets && userSockets.has(post.challengerUser.toString())) {
+          io.to(userSockets.get(post.challengerUser.toString())).emit('newNotification', notif);
+        }
+      }
+    }
+
+    // Notify all pending requesters
+    const pendingRequests = await Request.find({ matchPost: post._id, status: 'PENDING' });
+    for (const reqObj of pendingRequests) {
+        const requester = await User.findById(reqObj.sender);
+        if (requester) {
+            const msg = `The match post you challenged at ${post.court?.name || 'the court'} has been cancelled by the host.`;
+            sendEmail(requester.email, 'Match Post Cancelled', 'Post Cancelled', msg);
+        }
+    }
+
+    await Request.deleteMany({ matchPost: post._id });
+    await post.deleteOne();
+
+    res.json({ message: 'Post deleted successfully' });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // @desc    Get all Open Match Posts
 // @route   GET /api/matches/posts
 // @access  Public
@@ -386,6 +444,33 @@ router.put('/requests/:id/cancel', protect, async (req, res, next) => {
     request.status = 'CANCELLED';
     await request.save();
 
+    // Notify the other party
+    const notifierId = req.user._id.toString();
+    const otherPartyId = (request.sender.toString() === notifierId) ? request.receiver : request.sender;
+    const otherUser = await User.findById(otherPartyId);
+    
+    if (otherUser) {
+      const msg = (request.sender.toString() === notifierId) 
+        ? `${req.user.name} has cancelled their challenge for your match at ${post?.court?.name || 'the court'}.`
+        : `${req.user.name} has cancelled the match at ${post?.court?.name || 'the court'}.`;
+
+      sendEmail(otherUser.email, 'Match Cancellation', 'Match Cancelled', msg);
+
+      const Notification = require('../models/Notification');
+      const notif = new Notification({
+        recipient: otherPartyId,
+        message: msg,
+        type: 'match'
+      });
+      await notif.save();
+
+      const io = req.app.get('io');
+      const userSockets = req.app.get('userSockets');
+      if (io && userSockets && userSockets.has(otherPartyId.toString())) {
+        io.to(userSockets.get(otherPartyId.toString())).emit('newNotification', notif);
+      }
+    }
+
     if (previousStatus === 'ACCEPTED' && post.challengerUser) {
       post.status = 'Open';
       post.challengerUser = null;
@@ -453,9 +538,9 @@ router.put('/:id/report-attendance', protect, async (req, res, next) => {
 
     const inc = challengerAttended ? { matchesPlayed: 1 } : { noShows: 1 };
     await User.findByIdAndUpdate(match.challengerUser, { $inc: inc });
-    // Also increment host's matchesPlayed (host always showed up since they're reporting)
     await User.findByIdAndUpdate(match.user, { $inc: { matchesPlayed: 1 } });
     match.attendanceReported = true;
+    match.challengerAttended = challengerAttended;
     await match.save();
 
     if (!challengerAttended) {

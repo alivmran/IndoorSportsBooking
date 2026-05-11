@@ -236,19 +236,29 @@ router.put('/:id/submit-payment-proof', protect, async (req, res, next) => {
 
     const Notification = require('../models/Notification');
     if (booking.court && booking.court.manager) {
-      const notif = new Notification({
-        recipient: booking.court.manager,
-        message: `New payment proof submitted for booking at ${booking.court.name}. Action required.`,
-        type: 'booking'
+      // FIX: Only send one notification if multiple slots are updated in quick succession
+      const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000);
+      const existingNotif = await Notification.findOne({
+        recipient: booking.court.manager._id,
+        message: { $regex: booking.court.name },
+        createdAt: { $gte: fiveMinsAgo }
       });
-      await notif.save();
-      const io = req.app.get('io');
-      const userSockets = req.app.get('userSockets');
-      if (io && userSockets && userSockets.has(booking.court.manager._id.toString())) {
-        io.to(userSockets.get(booking.court.manager._id.toString())).emit('newNotification', notif);
+
+      if (!existingNotif) {
+        const notif = new Notification({
+          recipient: booking.court.manager._id,
+          message: `New payment proof submitted for booking at ${booking.court.name}. Action required.`,
+          type: 'booking'
+        });
+        await notif.save();
+        const io = req.app.get('io');
+        const userSockets = req.app.get('userSockets');
+        if (io && userSockets && userSockets.has(booking.court.manager._id.toString())) {
+          io.to(userSockets.get(booking.court.manager._id.toString())).emit('newNotification', notif);
+        }
+        const managerEmail = booking.court.notificationEmail || booking.court.manager.email;
+        sendEmail(managerEmail, 'Action Required: Pending Booking', 'Pending Booking Request', `A new payment proof has been submitted for ${booking.court.name}. Please review and approve.`);
       }
-      const managerEmail = booking.court.notificationEmail || booking.court.manager.email;
-      sendEmail(managerEmail, 'Action Required: Pending Booking', 'Pending Booking Request', `A new payment proof has been submitted for ${booking.court.name}. Please review and approve.`);
     }
 
     res.json(updatedBooking);

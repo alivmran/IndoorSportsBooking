@@ -58,6 +58,7 @@ router.post('/create-court', protect, admin, upload.array('images', 5), async (r
       priceWeekend,
       managerName,
       managerEmail,
+      managerMobile,
       notificationEmail
     } = req.body;
 
@@ -79,7 +80,7 @@ router.post('/create-court', protect, admin, upload.array('images', 5), async (r
 
     // Create Manager
     const manager = await User.create({
-        name: managerName, email: managerEmail, password, role: 'manager'
+        name: managerName, email: managerEmail, mobile: managerMobile, password, role: 'manager'
     });
 
     // Images from Cloudinary
@@ -154,13 +155,13 @@ router.get('/court/:id/stats', protect, admin, async (req, res, next) => {
 // @desc    Assign Manager to Existing Court
 router.post('/assign-manager', protect, admin, async (req, res, next) => {
   try {
-    const { courtId, managerName, managerEmail, notificationEmail } = req.body;
+    const { courtId, managerName, managerEmail, managerMobile, notificationEmail } = req.body;
     const court = await Court.findById(courtId);
     if (!court) throw new Error('Court not found');
     const existingUser = await User.findOne({ email: managerEmail });
     if (existingUser) throw new Error(`Manager email '${managerEmail}' is already in use.`);
     const password = req.body.password;
-    const manager = await User.create({ name: managerName, email: managerEmail, password, role: 'manager', managedCourt: court._id });
+    const manager = await User.create({ name: managerName, email: managerEmail, mobile: managerMobile, password, role: 'manager', managedCourt: court._id });
     court.manager = manager._id;
     if (notificationEmail) court.notificationEmail = notificationEmail;
     await court.save();

@@ -108,6 +108,7 @@ const MyBookings = () => {
   return (
     <div className="page-container">
       <h1 className="page-title">My Bookings</h1>
+      {/* Desktop table view */}
       <div className="table-container">
         <table className="bookings-table">
             <thead>
@@ -180,6 +181,65 @@ const MyBookings = () => {
                 ))}
             </tbody>
         </table>
+      </div>
+
+      {/* Mobile card view */}
+      <div className="mobile-booking-cards">
+        {bookings.length === 0 ? <p style={{color:'#aaa', padding:'1rem'}}>No bookings found.</p> : (
+          <div style={{display:'grid', gap:'10px'}}>
+            {bookings.map((b) => (
+              <div key={b._id} style={{background:'var(--bg-card)', border:'1px solid var(--border-color)', borderRadius:'10px', padding:'14px', position:'relative'}}>
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'8px', marginBottom:'10px'}}>
+                  <div>
+                    <h4 style={{margin:0, fontSize:'0.95rem', color:'white'}}>{b.court?.name}</h4>
+                    <p style={{margin:'4px 0 0 0', fontSize:'0.82rem', color:'#93c5fd'}}>Facility: {b.facility}</p>
+                  </div>
+                  <span className={`status ${b.status.toLowerCase()}`} style={{flexShrink:0, fontSize:'0.75rem'}}>{b.status}</span>
+                </div>
+                <div style={{display:'flex', gap:'12px', fontSize:'0.85rem', color:'#aaa', marginBottom:'10px'}}>
+                  <span>📅 {b.date}</span>
+                  <span>⏰ {b.startTime} - {b.endTime}</span>
+                </div>
+                <div style={{display:'grid', gap:'6px'}}>
+                  {['Pending', 'Awaiting Payment'].includes(b.status) && (
+                    <div style={{display:'flex', gap:'6px'}}>
+                      <button onClick={() => openEdit(b, false)} style={{flex:1, background:'rgba(59,130,246,0.15)', color:'#60a5fa', border:'1px solid rgba(59,130,246,0.3)', padding:'9px', borderRadius:'6px', cursor:'pointer', fontWeight:'600', fontSize:'0.82rem'}}>Update</button>
+                      <button onClick={() => handleDelete(b._id)} style={{flex:1, background:'rgba(239,68,68,0.12)', color:'#f87171', border:'1px solid rgba(239,68,68,0.3)', padding:'9px', borderRadius:'6px', cursor:'pointer', fontWeight:'600', fontSize:'0.82rem'}}>Delete</button>
+                    </div>
+                  )}
+                  {['Approved', 'Pending'].includes(b.status) && canReschedule(b.date, b.startTime) && (
+                    <button onClick={() => openEdit(b, true)} style={{background:'rgba(245,158,11,0.15)', color:'#f59e0b', border:'1px solid rgba(245,158,11,0.3)', padding:'9px', borderRadius:'6px', cursor:'pointer', fontWeight:'600', fontSize:'0.82rem'}}>Reschedule</button>
+                  )}
+                  {b.status === 'Approved' && (
+                    <button onClick={() => setReviewModal(b.court._id)} style={{background:'rgba(59,130,246,0.15)', color:'#60a5fa', border:'1px solid rgba(59,130,246,0.3)', padding:'9px', borderRadius:'6px', cursor:'pointer', fontWeight:'600', fontSize:'0.82rem'}}>Leave Review</button>
+                  )}
+                  {b.status === 'Awaiting Refund Details' && (
+                    <div style={{display:'grid', gap:'6px', marginTop:'4px'}}>
+                      <input placeholder="Bank Name" style={{padding:'10px', borderRadius:'6px', background:'var(--bg-input)', border:'1px solid var(--border-color)', color:'white', fontSize:'0.85rem'}} onChange={e => setRefundForms({...refundForms, [b._id]: {...(refundForms[b._id] || {}), refundBankName: e.target.value}})} />
+                      <input placeholder="Account Title" style={{padding:'10px', borderRadius:'6px', background:'var(--bg-input)', border:'1px solid var(--border-color)', color:'white', fontSize:'0.85rem'}} onChange={e => setRefundForms({...refundForms, [b._id]: {...(refundForms[b._id] || {}), refundAccountTitle: e.target.value}})} />
+                      <input placeholder="Account Number" style={{padding:'10px', borderRadius:'6px', background:'var(--bg-input)', border:'1px solid var(--border-color)', color:'white', fontSize:'0.85rem'}} onChange={e => setRefundForms({...refundForms, [b._id]: {...(refundForms[b._id] || {}), refundAccountNumber: e.target.value}})} />
+                      <input placeholder="WhatsApp Number" style={{padding:'10px', borderRadius:'6px', background:'var(--bg-input)', border:'1px solid var(--border-color)', color:'white', fontSize:'0.85rem'}} onChange={e => setRefundForms({...refundForms, [b._id]: {...(refundForms[b._id] || {}), refundContactNumber: e.target.value}})} />
+                      <button onClick={() => submitRefundInfo(b._id)} style={{background:'var(--primary-color)', color:'white', border:'none', padding:'10px', borderRadius:'6px', cursor:'pointer', fontWeight:'600', fontSize:'0.85rem'}}>Submit Refund Details</button>
+                    </div>
+                  )}
+                  {b.status === 'Refund Claimed' && (
+                    <div style={{display:'grid', gap:'6px', marginTop:'4px'}}>
+                      <div style={{fontSize:'0.82rem', color:'#ddd'}}>Manager says refund sent (TID: {b.refundTransactionId})</div>
+                      <button onClick={() => verifyRefund(b._id, true)} style={{background:'rgba(16,185,129,0.15)', color:'#34d399', border:'1px solid rgba(16,185,129,0.4)', padding:'10px', borderRadius:'6px', cursor:'pointer', fontWeight:'600'}}>I received it</button>
+                      <input placeholder="Reason if not received" value={disputeByBooking[b._id] || ''} onChange={e => setDisputeByBooking({...disputeByBooking, [b._id]: e.target.value})} style={{padding:'10px', borderRadius:'6px', background:'var(--bg-input)', border:'1px solid var(--border-color)', color:'white', fontSize:'0.85rem'}} />
+                      <button onClick={() => verifyRefund(b._id, false)} style={{background:'rgba(239,68,68,0.12)', color:'#fca5a5', border:'1px solid rgba(239,68,68,0.4)', padding:'10px', borderRadius:'6px', cursor:'pointer', fontWeight:'600'}}>I did not receive it</button>
+                    </div>
+                  )}
+                  {b.status === 'Disputed' && (
+                    <div style={{padding:'10px', border:'1px solid rgba(239,68,68,0.45)', background:'rgba(239,68,68,0.1)', borderRadius:'8px'}}>
+                      <span style={{color:'#fca5a5', fontWeight:'bold', fontSize:'0.85rem'}}>Refund Disputed. Support will contact you.</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
         {editBooking && (

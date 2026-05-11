@@ -1,9 +1,10 @@
-import { useContext, useEffect, useState, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useContext, useEffect, useState } from 'react';
+import { NavLink, useNavigate, Link } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
 import API from '../api/axios';
 import { io } from 'socket.io-client';
 import { toast } from 'react-toastify';
+import { Bell, Menu, X, LogOut, User, LayoutDashboard, Search, ShieldCheck } from 'lucide-react';
 
 const Navbar = () => {
   const { user, logout } = useContext(AuthContext);
@@ -16,7 +17,7 @@ const Navbar = () => {
 
   const isSuperAdmin = user && (user.role === 'admin' || user.isAdmin);
   const isManager = user && user.role === 'manager';
-  const isUser = user && user.role === 'user'; // Or standard user
+  const isUser = user && user.role === 'user';
 
   const [notifications, setNotifications] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -90,91 +91,107 @@ const Navbar = () => {
 
   return (
     <nav className="navbar">
-      {/* Logo */}
-      <div 
-        onClick={goHome} 
-        style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', height: '100%' }}
-      >
-        <img 
-          src="/khelo-logo.png" 
-          alt="Khelo Karachi Logo" 
-          style={{ height: '60px', width: 'auto', objectFit: 'contain', display: 'block', backgroundColor: '#ffffff', borderRadius: '12px', padding: '4px' }} 
-        />
-      </div>
+      <div className="navbar-container">
+        {/* Logo Section */}
+        <div className="logo-section" onClick={goHome}>
+          <div className="logo-wrapper">
+            <img src="/khelo-logo.png" alt="Logo" className="logo-img" />
+          </div>
+          <span className="logo-text">KHELO <span className="text-blue">KARACHI</span></span>
+        </div>
 
-      {/* Right side controls (always visible) */}
-      <div className="navbar-right">
-        {/* Bell - always visible outside hamburger */}
-        {user && (
-          <div className="notification-wrapper" style={{ position: 'relative' }}>
-            <button 
-               onClick={() => setShowDropdown(!showDropdown)} 
-               style={{ background: 'transparent', border: 'none', color: 'white', fontSize: '1.3rem', cursor: 'pointer', position: 'relative', padding: '6px' }}>
-               🔔
-               {unreadCount > 0 && <span className="notification-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>}
-            </button>
-            
-            {showDropdown && (
-                <div className="notification-dropdown">
-                    <div className="dropdown-header">
-                        <h4>Notifications</h4>
-                        {unreadCount > 0 && <button onClick={markAllAsRead} className="mark-all-btn">Mark all read</button>}
-                    </div>
-                    <div className="dropdown-body">
-                        {!Array.isArray(notifications) || notifications.length === 0 ? (
-                            <p className="no-notifs">No new notifications</p>
-                        ) : (
-                            notifications.map(n => (
-                                <div key={n._id} className={`notification-item ${!n.isRead ? 'unread' : ''}`} onClick={() => markAsRead(n._id, n.link)}>
-                                    <p>{n.message}</p>
-                                    <span className="time">{new Date(n.createdAt).toLocaleDateString()}</span>
-                                </div>
-                            ))
-                        )}
-                    </div>
-                </div>
+        {/* Navigation Group (Desktop) */}
+        <div className="nav-content">
+          <div className={`links ${mobileMenuOpen ? 'mobile-open' : ''}`}>
+            {isSuperAdmin && (
+              <NavLink to="/admin/dashboard" className="nav-item" onClick={closeMobile}>
+                <LayoutDashboard size={18} /> Admin Panel
+              </NavLink>
+            )}
+
+            {isManager && (
+              <NavLink to="/manager/dashboard" className="nav-item" onClick={closeMobile}>
+                <LayoutDashboard size={18} /> Dashboard
+              </NavLink>
+            )}
+
+            {(!user || isUser) && (
+              <NavLink to="/courts" className="nav-item" onClick={closeMobile}>
+                <Search size={18} /> Browse Courts
+              </NavLink>
+            )}
+
+            {isUser && (
+              <>
+                <NavLink to="/find-team" className="nav-item" onClick={closeMobile}>
+                  <ShieldCheck size={18} /> Find Match
+                </NavLink>
+                <NavLink to="/profile" className="nav-item" onClick={closeMobile}>
+                  <User size={18} /> Profile
+                </NavLink>
+              </>
+            )}
+
+            {user ? (
+              <button onClick={() => { handleLogout(); closeMobile(); }} className="logout-btn mobile-only">
+                <LogOut size={18} /> Logout
+              </button>
+            ) : (
+              <NavLink to="/login" className="nav-item login-link" onClick={closeMobile}>Login</NavLink>
             )}
           </div>
-        )}
 
-        {/* Hamburger - mobile only */}
-        <button className="mobile-menu-btn" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
-          {mobileMenuOpen ? '✕' : '☰'}
-        </button>
-      </div>
 
-      {/* Nav links (collapsible on mobile) */}
-      <div className={`links ${mobileMenuOpen ? 'mobile-open' : ''}`}>
-        {isSuperAdmin && (
-            <>
-                <Link to="/admin/dashboard" className="nav-action" onClick={closeMobile}>Admin Panel</Link>
-                <span className="badge" style={{background:'#ef4444', color:'white'}}>Super Admin</span>
-            </>
-        )}
+          {/* Persistent Actions (Bell + Logout + Mobile Menu) */}
+          <div className="nav-actions">
+            {user && (
+              <>
+                <div className="notification-wrapper">
+                  <button 
+                    className={`bell-btn ${unreadCount > 0 ? 'has-unread' : ''}`}
+                    onClick={() => setShowDropdown(!showDropdown)}
+                  >
+                    <Bell size={22} />
+                    {unreadCount > 0 && <span className="notification-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>}
+                  </button>
+                  
+                  {showDropdown && (
+                    <div className="notification-dropdown">
+                      <div className="dropdown-header">
+                        <h3>Notifications</h3>
+                        {unreadCount > 0 && <button onClick={markAllAsRead} className="mark-all-btn">Mark all read</button>}
+                      </div>
+                      <div className="dropdown-body">
+                        {!Array.isArray(notifications) || notifications.length === 0 ? (
+                          <div className="no-notifs">
+                            <Bell size={32} />
+                            <p>All caught up!</p>
+                          </div>
+                        ) : (
+                          notifications.map(n => (
+                            <div key={n._id} className={`notification-item ${!n.isRead ? 'unread' : ''}`} onClick={() => markAsRead(n._id, n.link)}>
+                              <p>{n.message}</p>
+                              <span className="time">{new Date(n.createdAt).toLocaleDateString()}</span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
 
-        {isManager && (
-            <>
-                <Link to="/manager/dashboard" className="nav-action" onClick={closeMobile}>Manager Dashboard</Link>
-                <span className="badge" style={{background:'#10b981', color:'white'}}>Manager</span>
-            </>
-        )}
+                <button onClick={handleLogout} className="logout-btn desktop-only">
+                  <LogOut size={18} /> Logout
+                </button>
+              </>
+            )}
 
-        {(!user || isUser) && (
-            <Link to="/courts" className="nav-action" onClick={closeMobile}>Browse Courts</Link>
-        )}
-        {isUser && (
-            <>
-                <Link to="/find-team" className="nav-action" onClick={closeMobile}>Find Match</Link>
-                <Link to="/requests" className="nav-action" onClick={closeMobile}>Requests</Link>
-                <Link to="/profile" className="nav-action" onClick={closeMobile}>My Profile</Link>
-            </>
-        )}
 
-        {user ? (
-            <button onClick={() => { handleLogout(); closeMobile(); }} className="nav-logout-btn">Logout</button>
-        ) : (
-           <Link to="/login" className="nav-action" onClick={closeMobile}>Login</Link>
-        )}
+            <button className="mobile-menu-btn" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+              {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
+          </div>
+        </div>
       </div>
     </nav>
   );

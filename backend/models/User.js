@@ -11,6 +11,7 @@ const userSchema = mongoose.Schema({
     enum: ['user', 'manager', 'admin'], 
     default: 'user' 
   },
+  mobile: { type: String },
   isVerified: { type: Boolean, default: false },
   verificationCode: { type: String },
   verificationCodeExpires: { type: Date },

@@ -5,6 +5,14 @@ import AuthContext from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import AdminCourtView from './AdminCourtView';
 import TimeSlotPicker from '../components/TimeSlotPicker';
+import { 
+  Trophy, 
+  MapPin, 
+  Sparkles, 
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight
+} from 'lucide-react';
 
 const to12Hour = (time24 = '00:00') => {
   const [hourRaw] = time24.split(':').map(Number);
@@ -50,7 +58,7 @@ const CourtDetails = () => {
   const navigate = useNavigate();
   const [court, setCourt] = useState(null);
   const [activeImage, setActiveImage] = useState(null);
-  
+
   // --- SLIDER LOGIC ---
   const nextImage = () => {
     if (!court?.images?.length) return;
@@ -73,7 +81,7 @@ const CourtDetails = () => {
     const interval = setInterval(nextImage, 7000);
     return () => clearInterval(interval);
   }, [court, activeImage]);
-  
+
   const [date, setDate] = useState('');
   const [facility, setFacility] = useState('');
   const [selectedSlots, setSelectedSlots] = useState([]);
@@ -86,9 +94,9 @@ const CourtDetails = () => {
 
   // --- MANAGER LOGIC ---
   useEffect(() => {
-      if (user && user.role === 'manager') {
-          navigate('/manager/dashboard');
-      }
+    if (user && user.role === 'manager') {
+      navigate('/manager/dashboard');
+    }
   }, [user, navigate]);
 
   // --- STANDARD USER LOGIC ---
@@ -108,19 +116,19 @@ const CourtDetails = () => {
 
   useEffect(() => {
     if (date && court && facility) {
-        const day = new Date(date).getDay();
-        const isWeekend = (day === 0 || day === 6); 
-        if (isWeekend && court.priceWeekend) setActivePrice(court.priceWeekend);
-        else setActivePrice(court.pricePerHour);
+      const day = new Date(date).getDay();
+      const isWeekend = (day === 0 || day === 6);
+      if (isWeekend && court.priceWeekend) setActivePrice(court.priceWeekend);
+      else setActivePrice(court.pricePerHour);
 
-        const fetchAvailability = async () => {
-            try {
-                const { data } = await API.get(`/bookings/availability?courtId=${court._id}&date=${date}&facility=${facility}`);
-                setUnavailableSlots(data);
-                setSelectedSlots([]); // Clear when date changes
-            } catch(e) { console.error(e); }
-        };
-        fetchAvailability();
+      const fetchAvailability = async () => {
+        try {
+          const { data } = await API.get(`/bookings/availability?courtId=${court._id}&date=${date}&facility=${facility}`);
+          setUnavailableSlots(data);
+          setSelectedSlots([]); // Clear when date changes
+        } catch (e) { console.error(e); }
+      };
+      fetchAvailability();
     }
   }, [date, court, facility]);
 
@@ -193,171 +201,184 @@ const CourtDetails = () => {
   // --- ADMIN LOGIC ---
   // If admin, hijack the view to show the Admin Control Panel
   if (user && (user.isAdmin || user.role === 'admin')) {
-      return (
-        <div className="page-container">
-            <AdminCourtView courtId={id} />
-        </div>
-      );
+    return (
+      <div className="page-container">
+        <AdminCourtView courtId={id} />
+      </div>
+    );
   }
 
   if (!court) return <div className="page-container">Loading...</div>;
 
   return (
     <div className="page-container">
-        <div className="details-header">
-            <h1>{court.name}</h1>
-            <div style={{marginTop:'10px'}}>
-              <span className="badge large">{(court.facilities || []).join(', ')}</span>
-            </div>
+      <div style={{ marginBottom: '2.5rem' }}>
+        <h1 style={{ margin: 0, fontSize: '3rem', fontWeight: '900', color: 'white', letterSpacing: '-1px' }}>{court.name}</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#9ca3af', fontSize: '1.1rem', marginTop: '12px' }}>
+          <MapPin size={20} color="#ef4444" /> {court.location}
         </div>
-        
-        <div className="details-layout">
-          <div className="left-column">
-            <div className="gallery-box" style={{marginBottom:'20px', position: 'relative'}}>
-                {activeImage ? (
+        <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+          {(court.facilities || []).map(f => (
+            <span key={f} style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#60a5fa', fontSize: '0.75rem', fontWeight: '900', padding: '6px 14px', borderRadius: '10px', textTransform: 'uppercase', border: '1px solid rgba(59, 130, 246, 0.2)' }}>{f}</span>
+          ))}
+        </div>
+      </div>
+
+      <div className="details-layout">
+        <div className="left-column">
+          <div className="gallery-box" style={{ marginBottom: '20px', position: 'relative' }}>
+            {activeImage ? (
+              <>
+                <img src={activeImage} className="main-image" style={{ transition: 'opacity 0.3s ease-in-out' }} />
+                {court.images && court.images.length > 1 && (
                   <>
-                    <img src={activeImage} className="main-image" style={{ transition: 'opacity 0.3s ease-in-out' }} />
-                    {court.images && court.images.length > 1 && (
-                      <>
-                        <button onClick={(e) => { e.preventDefault(); prevImage(); }} style={{ position: 'absolute', left: '15px', top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.6)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '50%', width: '45px', height: '45px', cursor: 'pointer', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s', zIndex: 10 }}>❮</button>
-                        <button onClick={(e) => { e.preventDefault(); nextImage(); }} style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.6)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '50%', width: '45px', height: '45px', cursor: 'pointer', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s', zIndex: 10 }}>❯</button>
-                        <div style={{ position: 'absolute', bottom: '15px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '8px', zIndex: 10, background: 'rgba(0,0,0,0.4)', padding: '6px 12px', borderRadius: '20px' }}>
-                          {court.images.map((img, idx) => (
-                            <div key={idx} onClick={() => setActiveImage(img)} style={{ width: '10px', height: '10px', borderRadius: '50%', background: activeImage === img ? '#3b82f6' : 'rgba(255,255,255,0.4)', cursor: 'pointer', transition: 'background 0.2s' }} />
-                          ))}
-                        </div>
-                      </>
-                    )}
+                    <button onClick={(e) => { e.preventDefault(); prevImage(); }} style={{ position: 'absolute', left: '15px', top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.6)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '50%', width: '45px', height: '45px', cursor: 'pointer', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s', zIndex: 10 }}>❮</button>
+                    <button onClick={(e) => { e.preventDefault(); nextImage(); }} style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.6)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '50%', width: '45px', height: '45px', cursor: 'pointer', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s', zIndex: 10 }}>❯</button>
+                    <div style={{ position: 'absolute', bottom: '15px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '8px', zIndex: 10, background: 'rgba(0,0,0,0.4)', padding: '6px 12px', borderRadius: '20px' }}>
+                      {court.images.map((img, idx) => (
+                        <div key={idx} onClick={() => setActiveImage(img)} style={{ width: '10px', height: '10px', borderRadius: '50%', background: activeImage === img ? '#3b82f6' : 'rgba(255,255,255,0.4)', cursor: 'pointer', transition: 'background 0.2s' }} />
+                      ))}
+                    </div>
                   </>
-                ) : <div className="placeholder-large">No Image</div>}
-            </div>
-            
-            <div className="info-box">
-                <div style={{ background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '12px', padding: '20px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.2)' }}>
-                    <div style={{ background: 'rgba(59, 130, 246, 0.2)', padding: '12px', borderRadius: '12px', fontSize: '1.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        🕒
-                    </div>
-                    <div>
-                        <h4 style={{ margin: 0, color: '#60a5fa', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>Operating Hours</h4>
-                        <p style={{ margin: 0, color: '#ffffff', fontWeight: '800', fontSize: '1.4rem' }}>
-                            {to12Hour(court.operationalStartTime || '00:00')} - {to12Hour(court.operationalEndTime || '24:00')}
-                        </p>
-                    </div>
-                </div>
-                
-                <p className="desc-text" style={{ fontSize: '1.05rem', lineHeight: '1.7' }}>{court.description}</p>
-                <h3 style={{ marginTop: '2rem' }}>Amenities</h3>
-                <div className="amenities-list">
-                    <ul>
-                      {(court.amenities?.length ? court.amenities : ['Parking', 'Showers', 'Floodlights', 'Cafe']).map((a) => (
-                        <li key={a}>{a}</li>
-                      ))}
-                    </ul>
-                </div>
-                {court.googleMapLink && (
-                  <div style={{marginTop:'12px'}}>
-                    <h3>Location Map</h3>
-                    {getEmbedMapUrl(court.googleMapLink) ? (
-                      <iframe
-                        title="Court location map"
-                        src={getEmbedMapUrl(court.googleMapLink)}
-                        style={{width:'100%', height:'260px', border:'1px solid #333', borderRadius:'10px'}}
-                        loading="lazy"
-                        referrerPolicy="no-referrer-when-downgrade"
-                      />
-                    ) : null}
-                  </div>
                 )}
-                {court.reviews && court.reviews.length > 0 && (
-                  <div style={{marginTop:'2rem'}}>
-                    <h3>Reviews ({court.numReviews}) - {court.rating?.toFixed(1)} ⭐</h3>
-                    <div style={{display:'flex', flexDirection:'column', gap:'12px', marginTop:'12px'}}>
-                      {court.reviews.map(r => (
-                        <div key={r._id} style={{padding:'12px', background:'rgba(255,255,255,0.05)', borderRadius:'8px', border:'1px solid #333'}}>
-                          <div style={{display:'flex', justifyContent:'space-between', marginBottom:'8px'}}>
-                            <strong>{r.name}</strong>
-                            <span style={{color:'#facc15'}}>{'⭐'.repeat(r.rating)}</span>
-                          </div>
-                          <p style={{margin:0, color:'#ddd', fontSize:'0.9rem'}}>{r.comment}</p>
-                          <small style={{color:'#888', display:'block', marginTop:'8px'}}>{new Date(r.createdAt).toLocaleDateString()}</small>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-            </div>
+              </>
+            ) : <div className="placeholder-large">No Image</div>}
           </div>
-            
-            <div className="booking-sidebar">
-                <div className="booking-card">
-                    {user ? (
-                        <div className="book-slot-container">
-                            <div className="book-slot-header">
-                                <h3>Book Slot</h3>
-                                <div className="price-display">PKR {activePrice * (selectedSlots.length || 1)} <span>{selectedSlots.length > 0 ? '/ total' : '/ hr'}</span></div>
-                            </div>
-                            <form onSubmit={handleBooking}>
-                                <div className="form-group">
-                                    <label>Select Facility</label>
-                                    <select value={facility} onChange={e => setFacility(e.target.value)} required>
-                                      {(court.facilities || []).map((f) => <option key={f} value={f}>{f}</option>)}
-                                    </select>
-                                </div>
-                                <div className="form-group">
-                                    <label>Date</label>
-                                    <input type="date" min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]} value={date} onChange={e => setDate(e.target.value)} required />
-                                </div>
-                                {date && (
-                                    <div className="form-group">
-                                        <label>Select Time Slots</label>
-                                        <TimeSlotPicker
-                                          selectedSlots={selectedSlots}
-                                          onChange={setSelectedSlots}
-                                          unavailableSlots={unavailableSlots}
-                                          startHour={parseHour(court.operationalStartTime, 0)}
-                                          endHour={parseHour(court.operationalEndTime, 24)}
-                                          selectedDate={date}
-                                        />
-                                    </div>
-                                )}
-                                <button type="submit" className="book-btn large confirm-btn-styled" disabled={selectedSlots.length === 0}>Confirm Booking</button>
-                            </form>
-                        </div>
-                    ) : (
-                        <div style={{textAlign:'center', padding:'20px 0'}}>
-                            <p style={{marginBottom:'15px', color:'#aaa'}}>Please login to view availability and book courts.</p>
-                            <button onClick={() => navigate('/login')} className="book-btn large">Login to Book</button>
-                        </div>
-                    )}
-                </div>
+
+          <div className="info-box">
+            <div style={{ background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '12px', padding: '16px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 4px 15px rgba(0,0,0,0.2)' }}>
+              <div style={{ background: 'rgba(59, 130, 246, 0.2)', padding: '10px', borderRadius: '10px', fontSize: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                🕒
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <h4 style={{ margin: 0, color: '#60a5fa', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '3px' }}>Operating Hours</h4>
+                <p style={{ margin: 0, color: '#ffffff', fontWeight: '800', fontSize: 'clamp(1rem, 3.5vw, 1.3rem)' }}>
+                  {to12Hour(court.operationalStartTime || '00:00')} - {to12Hour(court.operationalEndTime || '24:00')}
+                </p>
+              </div>
             </div>
+
+            <p className="desc-text" style={{ fontSize: '1.05rem', lineHeight: '1.7' }}>{court.description}</p>
+            
+            <div style={{ marginTop: '3rem' }}>
+              <h3 style={{ fontSize: '1.4rem', color: 'white', fontWeight: '900', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Sparkles size={22} color="#facc15" /> Available Amenities
+              </h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1.25rem' }}>
+                {(court.amenities?.length ? court.amenities : ['Parking', 'Showers', 'Cafe']).map(amenity => (
+                  <div key={amenity} style={{ background: 'rgba(255,255,255,0.03)', padding: '1.25rem', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ width: '36px', height: '36px', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <CheckCircle2 size={18} color="#10b981" />
+                    </div>
+                    <span style={{ color: 'white', fontWeight: '700', fontSize: '0.9rem' }}>{amenity}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {court.googleMapLink && (
+              <div style={{ marginTop: '12px' }}>
+                <h3>Location Map</h3>
+                {getEmbedMapUrl(court.googleMapLink) ? (
+                  <iframe
+                    title="Court location map"
+                    src={getEmbedMapUrl(court.googleMapLink)}
+                    style={{ width: '100%', height: '260px', border: '1px solid #333', borderRadius: '10px' }}
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                  />
+                ) : null}
+              </div>
+            )}
+            {court.reviews && court.reviews.length > 0 && (
+              <div style={{ marginTop: '2rem' }}>
+                <h3>Reviews ({court.numReviews}) - {court.rating?.toFixed(1)} ⭐</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px' }}>
+                  {court.reviews.map(r => (
+                    <div key={r._id} style={{ padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', border: '1px solid #333' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                        <strong>{r.name}</strong>
+                        <span style={{ color: '#facc15' }}>{'⭐'.repeat(r.rating)}</span>
+                      </div>
+                      <p style={{ margin: 0, color: '#ddd', fontSize: '0.9rem' }}>{r.comment}</p>
+                      <small style={{ color: '#888', display: 'block', marginTop: '8px' }}>{new Date(r.createdAt).toLocaleDateString()}</small>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-        {paymentModalOpen && (
-          <div className="modal-overlay">
-            <div className="modal-content">
-              <h3 style={{marginBottom:'10px'}}>Awaiting Payment</h3>
-              <p style={{color:'#ccc', marginBottom:'12px'}}>Send payment now, then submit proof to continue for manager approval.</p>
-              <div style={{padding:'12px', border:'1px solid rgba(16,185,129,0.4)', borderRadius:'8px', marginBottom:'12px', background:'rgba(16,185,129,0.08)'}}>
-                <p style={{margin:'6px 0', color:'#cfcfcf'}}>Advance Amount: PKR {court.advanceRequired || 0}</p>
-                <p style={{margin:'6px 0', color:'#cfcfcf'}}>Bank: {court.paymentBank || '-'}</p>
-                <p style={{margin:'6px 0', color:'#cfcfcf'}}>Account Title: {court.paymentAccountTitle || '-'}</p>
-                <p style={{margin:'6px 0', color:'#cfcfcf'}}>Account Number: {court.paymentAccountNumber || '-'}</p>
+
+        <div className="booking-sidebar">
+          <div className="booking-card">
+            {user ? (
+              <div className="book-slot-container">
+                <div className="book-slot-header">
+                  <h3>Book Slot</h3>
+                  <div className="price-display">PKR {activePrice * (selectedSlots.length || 1)} <span>{selectedSlots.length > 0 ? '/ total' : '/ hr'}</span></div>
+                </div>
+                <form onSubmit={handleBooking}>
+                  <div className="form-group">
+                    <label>Select Facility</label>
+                    <select value={facility} onChange={e => setFacility(e.target.value)} required>
+                      {(court.facilities || []).map((f) => <option key={f} value={f}>{f}</option>)}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Date</label>
+                    <input type="date" min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]} value={date} onChange={e => setDate(e.target.value)} required />
+                  </div>
+                  {date && (
+                    <div className="form-group">
+                      <label>Select Time Slots</label>
+                      <TimeSlotPicker
+                        selectedSlots={selectedSlots}
+                        onChange={setSelectedSlots}
+                        unavailableSlots={unavailableSlots}
+                        startHour={parseHour(court.operationalStartTime, 0)}
+                        endHour={parseHour(court.operationalEndTime, 24)}
+                        selectedDate={date}
+                      />
+                    </div>
+                  )}
+                  <button type="submit" className="book-btn large confirm-btn-styled" disabled={selectedSlots.length === 0}>Confirm Booking</button>
+                </form>
               </div>
-              <div className="form-group">
-                <label>Sender Account Name</label>
-                <input value={senderName} onChange={e => setSenderName(e.target.value)} />
+            ) : (
+              <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                <p style={{ marginBottom: '15px', color: '#aaa' }}>Please login to view availability and book courts.</p>
+                <button onClick={() => navigate('/login')} className="book-btn large">Login to Book</button>
               </div>
-              <div className="form-group">
-                <label>Last 4 Digits of TID</label>
-                <input value={transactionIdShort} onChange={e => setTransactionIdShort(e.target.value.replace(/\D/g, '').slice(0, 4))} maxLength="4" pattern="\d{4}" title="Please enter exactly 4 numbers" />
-              </div>
-              <div className="modal-actions">
-                <button className="confirm-btn" onClick={handleSubmitPaymentProof}>Submit Payment Proof</button>
-                <button className="cancel-btn" onClick={() => setPaymentModalOpen(false)}>Close</button>
-              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      {paymentModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h3 style={{ marginBottom: '10px' }}>Awaiting Payment</h3>
+            <p style={{ color: '#ccc', marginBottom: '12px' }}>Send payment now, then submit proof to continue for manager approval.</p>
+            <div style={{ padding: '12px', border: '1px solid rgba(16,185,129,0.4)', borderRadius: '8px', marginBottom: '12px', background: 'rgba(16,185,129,0.08)' }}>
+              <p style={{ margin: '6px 0', color: '#cfcfcf' }}>Advance Amount: PKR {court.advanceRequired || 0}</p>
+              <p style={{ margin: '6px 0', color: '#cfcfcf' }}>Bank: {court.paymentBank || '-'}</p>
+              <p style={{ margin: '6px 0', color: '#cfcfcf' }}>Account Title: {court.paymentAccountTitle || '-'}</p>
+              <p style={{ margin: '6px 0', color: '#cfcfcf' }}>Account Number: {court.paymentAccountNumber || '-'}</p>
+            </div>
+            <div className="form-group">
+              <label>Sender Account Name</label>
+              <input value={senderName} onChange={e => setSenderName(e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label>Last 4 Digits of TID</label>
+              <input value={transactionIdShort} onChange={e => setTransactionIdShort(e.target.value.replace(/\D/g, '').slice(0, 4))} maxLength="4" pattern="\d{4}" title="Please enter exactly 4 numbers" />
+            </div>
+            <div className="modal-actions">
+              <button className="confirm-btn" onClick={handleSubmitPaymentProof}>Submit Payment Proof</button>
+              <button className="cancel-btn" onClick={() => setPaymentModalOpen(false)}>Close</button>
             </div>
           </div>
-        )}
+        </div>
+      )}
     </div>
   );
 };

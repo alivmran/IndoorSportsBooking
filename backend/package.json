@@ -5,7 +5,7 @@
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
-    "express-rate-limit": "^8.4.1",
+    "express-rate-limit": "^8.5.1",
     "express-validator": "^7.3.2",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.0.1",
@@ -26,7 +26,13 @@
     "start": "node server.js",
     "dev": "nodemon server.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC"
+  "keywords": [
+    "bookingsport",
+    "indoor",
+    "court",
+    "sports",
+    "booking"
+  ],
+  "author": "Ali Imran",
+  "license": "MIT"
 }

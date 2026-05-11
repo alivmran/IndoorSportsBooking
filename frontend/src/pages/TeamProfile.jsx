@@ -2,9 +2,26 @@ import { useEffect, useState, useContext } from 'react';
 import API from '../api/axios';
 import AuthContext from '../context/AuthContext';
 import { toast } from 'react-toastify';
+import { 
+  User, 
+  Mail, 
+  Award, 
+  AlertCircle, 
+  Calendar, 
+  Clock, 
+  CreditCard, 
+  ChevronRight, 
+  History, 
+  ShieldCheck, 
+  XCircle,
+  FileText,
+  BadgeCheck,
+  Smartphone
+} from 'lucide-react';
 
 const TeamProfile = () => {
-  const { user } = useContext(AuthContext);
+  const { user: authUser } = useContext(AuthContext);
+  const [profile, setProfile] = useState(null);
   const [bookings, setBookings] = useState([]);
   const [matchHistory, setMatchHistory] = useState({ hosted: [], challenged: [] });
   const [disputeReasonByBooking, setDisputeReasonByBooking] = useState({});
@@ -20,18 +37,23 @@ const TeamProfile = () => {
   const [senderName, setSenderName] = useState('');
   const [transactionIdShort, setTransactionIdShort] = useState('');
   
+  const fetchData = async () => {
+    try {
+      const [bookingRes, matchRes, profileRes] = await Promise.all([
+        API.get('/bookings/mybookings'),
+        API.get('/matches/history'),
+        API.get('/users/profile')
+      ]);
+      
+      setBookings(bookingRes.data);
+      setMatchHistory(matchRes.data);
+      setProfile(profileRes.data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const bookingRes = await API.get('/bookings/mybookings');
-        setBookings(bookingRes.data);
-        
-        const matchRes = await API.get('/matches/history');
-        setMatchHistory(matchRes.data);
-      } catch (error) {
-        console.error(error);
-      }
-    };
     fetchData();
     window.addEventListener('refreshBookings', fetchData);
     return () => window.removeEventListener('refreshBookings', fetchData);
@@ -148,182 +170,326 @@ const TeamProfile = () => {
   };
 
   return (
-    <div className="page-container">
-      <div className="header-section">
-        <h1 className="page-title">My Profile</h1>
+    <div className="page-container" style={{ padding: '0 20px', maxWidth: '1200px', margin: '0 auto' }}>
+      {/* Premium User Header */}
+      <div style={{ 
+        background: 'rgba(255,255,255,0.03)', 
+        padding: '2rem', 
+        borderRadius: '30px', 
+        border: '1px solid rgba(255,255,255,0.08)', 
+        marginBottom: '2rem',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '2rem'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
+          <div style={{ 
+            width: '80px', 
+            height: '80px', 
+            borderRadius: '24px', 
+            background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            boxShadow: '0 10px 25px rgba(37, 99, 235, 0.3)'
+          }}>
+            <User size={40} color="white" />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <h1 style={{ margin: 0, fontSize: '1.8rem', fontWeight: '900', color: 'white', letterSpacing: '-0.5px' }}>
+                {profile?.name || authUser?.name || 'Loading...'}
+              </h1>
+              {profile?.isVerified && (
+                <div title="Verified Athlete" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '4px', borderRadius: '50%', display: 'flex' }}>
+                  <BadgeCheck size={16} />
+                </div>
+              )}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginTop: '6px', color: '#9ca3af', fontSize: '0.9rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Mail size={14} /> {profile?.email || authUser?.email}
+              </div>
+            </div>
+          </div>
+          
+          {/* Quick Stats */}
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <div style={{ background: 'rgba(59, 130, 246, 0.05)', padding: '12px 20px', borderRadius: '18px', border: '1px solid rgba(59, 130, 246, 0.1)', textAlign: 'center' }}>
+              <p style={{ margin: 0, fontSize: '0.65rem', color: '#60a5fa', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px' }}>Matches</p>
+              <p style={{ margin: '4px 0 0 0', fontSize: '1.25rem', color: 'white', fontWeight: '900' }}>{profile?.matchesPlayed || 0}</p>
+            </div>
+            <div style={{ background: 'rgba(239, 68, 68, 0.05)', padding: '12px 20px', borderRadius: '18px', border: '1px solid rgba(239, 68, 68, 0.1)', textAlign: 'center' }}>
+              <p style={{ margin: 0, fontSize: '0.65rem', color: '#f87171', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px' }}>No-Shows</p>
+              <p style={{ margin: '4px 0 0 0', fontSize: '1.25rem', color: 'white', fontWeight: '900' }}>{profile?.noShows || 0}</p>
+            </div>
+          </div>
+        </div>
+
         {refundPendingCount > 0 && (
-          <div style={{display:'inline-flex', alignItems:'center', gap:'8px', marginTop:'8px', background:'rgba(239,68,68,0.15)', border:'1px solid rgba(239,68,68,0.5)', padding:'6px 10px', borderRadius:'999px', fontWeight:'700', color:'#f87171'}}>
-            <span style={{width:'20px', height:'20px', borderRadius:'50%', background:'#ef4444', color:'#fff', display:'inline-flex', justifyContent:'center', alignItems:'center', fontSize:'0.8rem'}}>1</span>
-            Refund action needed
+          <div style={{ 
+            background: 'linear-gradient(to right, rgba(239, 68, 68, 0.1), transparent)', 
+            borderLeft: '4px solid #ef4444', 
+            padding: '12px 20px', 
+            borderRadius: '0 14px 14px 0',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '15px'
+          }}>
+            <div style={{ background: '#ef4444', color: 'white', width: '24px', height: '24px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: '900' }}>
+              {refundPendingCount}
+            </div>
+            <div>
+              <p style={{ margin: 0, color: 'white', fontWeight: '700', fontSize: '0.95rem' }}>Action Required: Refund Details Needed</p>
+              <p style={{ margin: '2px 0 0 0', color: '#fca5a5', fontSize: '0.8rem' }}>Please provide your bank details for {refundPendingCount} canceled booking(s).</p>
+            </div>
           </div>
         )}
       </div>
 
-      <div className="profile-section">
-        <h2>Booking History</h2>
-        {visibleBookings.length === 0 ? <p style={{color:'#aaa'}}>No bookings found.</p> : (
-            <div className="courts-grid">
+      <div style={{ marginBottom: '3rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem' }}>
+          <div style={{ padding: '8px', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '10px', display: 'flex' }}>
+            <Calendar size={20} color="#3b82f6" />
+          </div>
+          <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '800', color: 'white' }}>Booking History</h2>
+        </div>
+        
+        {visibleBookings.length === 0 ? (
+          <div style={{ padding: '3rem', textAlign: 'center', background: 'rgba(255,255,255,0.02)', borderRadius: '24px', border: '1px dashed rgba(255,255,255,0.1)' }}>
+            <p style={{ color: '#6b7280', margin: 0 }}>No bookings found in your history.</p>
+          </div>
+        ) : (
+          <div className="courts-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
             {visibleBookings.map((b) => (
-                <div key={b._id} className="card" onClick={() => b.status === 'Awaiting Refund Details' ? openRefundModal(b) : undefined}>
-                    <div className="card-header">
-                        <h3>{b.court?.name}</h3>
-                        <span className={`badge`} style={{
-                            background: b.status === 'Approved' ? 'rgba(16, 185, 129, 0.2)' : b.status === 'Rejected' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(250, 204, 21, 0.2)',
-                            color: b.status === 'Approved' ? '#34d399' : b.status === 'Rejected' ? '#f87171' : '#facc15'
-                        }}>
-                            {b.status}
-                        </span>
-                    </div>
-                    <div className="card-body">
-                        <p style={{color: '#aaa', margin:0, display:'flex', alignItems:'center', gap:'5px'}}>📅 {b.date}</p>
-                        <p style={{color: '#aaa', margin:'5px 0 0 0', display:'flex', alignItems:'center', gap:'5px'}}>⏰ {b.startTime}</p>
-                        <p style={{color:'#93c5fd', margin:'6px 0 0 0', fontSize:'0.85rem'}}>Facility: {b.facility}</p>
-                        <p style={{color: 'white', fontWeight:'bold', marginTop:'15px', fontSize:'1.2rem'}}>PKR {b.totalPrice}</p>
-                        {['Pending', 'Awaiting Payment'].includes(b.status) && (
-                            <button onClick={() => handleDeleteBooking(b._id)} style={{marginTop:'15px', width:'100%', background:'rgba(239, 68, 68, 0.1)', color:'#ef4444', border:'1px solid rgba(239, 68, 68, 0.3)', padding:'8px', borderRadius:'6px', cursor:'pointer', fontWeight:'bold'}}>
-                                Cancel Request
-                            </button>
-                        )}
-                        {b.status === 'Awaiting Payment' && (
-                            <button onClick={() => setPaymentModalBooking(b)} style={{marginTop:'10px', width:'100%', background:'rgba(59, 130, 246, 0.15)', color:'#60a5fa', border:'1px solid rgba(59, 130, 246, 0.4)', padding:'8px', borderRadius:'6px', cursor:'pointer', fontWeight:'bold'}}>
-                                Submit Payment Proof
-                            </button>
-                        )}
-                        {b.status === 'Refund Claimed' && (
-                          <div style={{marginTop:'12px', display:'grid', gap:'8px'}}>
-                            <div style={{fontSize:'0.84rem', color:'#ddd'}}>Manager marked refund sent (TID: {b.refundTransactionId || '-'}).</div>
-                            <button onClick={() => handleAcceptRefund(b._id)} style={{width:'100%', background:'rgba(16, 185, 129, 0.15)', color:'#34d399', border:'1px solid rgba(16, 185, 129, 0.4)', padding:'8px', borderRadius:'6px', cursor:'pointer', fontWeight:'700'}}>
-                              Confirm Refund Received
-                            </button>
-                            <textarea
-                              placeholder="Enter dispute reason if refund not received"
-                              value={disputeReasonByBooking[b._id] || ''}
-                              onChange={(e) => setDisputeReasonByBooking({ ...disputeReasonByBooking, [b._id]: e.target.value })}
-                              rows={2}
-                              style={{width:'100%', padding:'10px', borderRadius:'8px', background:'#111827', border:'1px solid #475569', color:'#fff', marginTop: '10px'}}
-                            />
-                            <button onClick={() => handleDisputeRefund(b._id)} style={{width:'100%', background:'rgba(239, 68, 68, 0.14)', color:'#fca5a5', border:'1px solid rgba(239, 68, 68, 0.4)', padding:'8px', borderRadius:'6px', cursor:'pointer', fontWeight:'700'}}>
-                              Dispute Refund
-                            </button>
-                          </div>
-                        )}
-                        {b.status === 'Awaiting Refund Details' && (
-                          <div style={{marginTop:'12px', padding:'10px', border:'1px solid rgba(239,68,68,0.45)', background:'rgba(239,68,68,0.1)', borderRadius:'8px', color:'#fca5a5', fontWeight:'600'}}>
-                            Awaiting refund details - click this card to submit.
-                          </div>
-                        )}
-                        {b.status === 'Disputed' && (
-                          <div style={{marginTop:'12px', padding:'10px', border:'1px solid rgba(239,68,68,0.45)', background:'rgba(239,68,68,0.1)', borderRadius:'8px', color:'#fca5a5', fontWeight:'600'}}>
-                            Dispute submitted. Khelo support will contact you within 24 hours.
-                          </div>
-                        )}
-                    </div>
+              <div 
+                key={b._id} 
+                className="card" 
+                onClick={() => b.status === 'Awaiting Refund Details' ? openRefundModal(b) : undefined}
+                style={{ 
+                  background: 'rgba(255,255,255,0.03)', 
+                  border: '1px solid rgba(255,255,255,0.08)', 
+                  borderRadius: '24px',
+                  padding: '1.5rem',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  cursor: b.status === 'Awaiting Refund Details' ? 'pointer' : 'default',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800', color: 'white', maxWidth: '70%' }}>{b.court?.name}</h3>
+                  <span style={{ 
+                    background: b.status === 'Approved' ? 'rgba(16, 185, 129, 0.1)' : b.status === 'Rejected' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(250, 204, 21, 0.1)',
+                    color: b.status === 'Approved' ? '#10b981' : b.status === 'Rejected' ? '#f87171' : '#facc15',
+                    padding: '4px 10px',
+                    borderRadius: '8px',
+                    fontSize: '0.65rem',
+                    fontWeight: '900',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
+                  }}>
+                    {b.status}
+                  </span>
                 </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#9ca3af', fontSize: '0.85rem' }}>
+                    <Calendar size={16} /> {b.date}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#9ca3af', fontSize: '0.85rem' }}>
+                    <Clock size={16} /> {b.startTime}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#60a5fa', fontSize: '0.85rem', fontWeight: '700' }}>
+                    <Award size={16} /> {b.facility}
+                  </div>
+                </div>
+
+                <div style={{ marginTop: '1.5rem', paddingTop: '1.25rem', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <p style={{ margin: 0, fontSize: '0.65rem', color: '#6b7280', fontWeight: '700', textTransform: 'uppercase' }}>Amount Paid</p>
+                    <p style={{ margin: '2px 0 0 0', fontSize: '1.2rem', color: 'white', fontWeight: '900' }}>PKR {b.totalPrice}</p>
+                  </div>
+                </div>
+
+                {/* Contextual Actions */}
+                <div style={{ marginTop: '1.25rem' }}>
+                  {['Pending', 'Awaiting Payment'].includes(b.status) && (
+                    <button onClick={(e) => { e.stopPropagation(); handleDeleteBooking(b._id); }} style={{ width: '100%', background: 'rgba(239, 68, 68, 0.05)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '10px', borderRadius: '12px', cursor: 'pointer', fontWeight: '800', fontSize: '0.8rem' }}>
+                      Cancel Request
+                    </button>
+                  )}
+                  {b.status === 'Awaiting Payment' && (
+                    <button onClick={(e) => { e.stopPropagation(); setPaymentModalBooking(b); }} style={{ marginTop: '10px', width: '100%', background: 'var(--primary-color)', color: 'white', border: 'none', padding: '10px', borderRadius: '12px', cursor: 'pointer', fontWeight: '800', fontSize: '0.8rem' }}>
+                      Submit Proof
+                    </button>
+                  )}
+                  {b.status === 'Refund Claimed' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <button onClick={(e) => { e.stopPropagation(); handleAcceptRefund(b._id); }} style={{ width: '100%', background: '#10b981', color: 'white', border: 'none', padding: '10px', borderRadius: '12px', cursor: 'pointer', fontWeight: '800', fontSize: '0.8rem' }}>
+                        Confirm Refund Received
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); handleDisputeRefund(b._id); }} style={{ width: '100%', background: 'rgba(239, 68, 68, 0.05)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '10px', borderRadius: '12px', cursor: 'pointer', fontWeight: '800', fontSize: '0.8rem' }}>
+                        Dispute Refund
+                      </button>
+                    </div>
+                  )}
+                  {b.status === 'Awaiting Refund Details' && (
+                    <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', padding: '10px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '8px', color: '#f87171', fontSize: '0.75rem', fontWeight: '800' }}>
+                      <AlertCircle size={16} /> SUBMIT REFUND DETAILS
+                    </div>
+                  )}
+                </div>
+              </div>
             ))}
-            </div>
+          </div>
         )}
       </div>
 
-      <div className="profile-section" style={{marginTop: '3rem'}}>
-        <h2>Match History</h2>
-        {allMatches.length === 0 ? <p style={{color:'#aaa'}}>No played matches found.</p> : (
-            <div className="courts-grid">
+      <div style={{ marginBottom: '3rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem' }}>
+          <div style={{ padding: '8px', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '10px', display: 'flex' }}>
+            <History size={20} style={{ color: '#10b981' }} />
+          </div>
+          <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '800', color: 'white' }}>Match History</h2>
+        </div>
+
+        {allMatches.length === 0 ? (
+          <div style={{ padding: '3rem', textAlign: 'center', background: 'rgba(255,255,255,0.02)', borderRadius: '24px', border: '1px dashed rgba(255,255,255,0.1)' }}>
+            <p style={{ color: '#6b7280', margin: 0 }}>No played matches found.</p>
+          </div>
+        ) : (
+          <div className="courts-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
             {allMatches.map((match, i) => (
-                <div key={match._id || i} className="card">
-                    <div className="card-header">
-                        <h3>{match.court?.name}</h3>
-                        <span className={`badge`} style={{ 
-                            background: match.date < todayStr ? (match.challengerUser ? 'rgba(59, 130, 246, 0.2)' : 'rgba(239, 68, 68, 0.2)') : 'rgba(250, 204, 21, 0.2)', 
-                            color: match.date < todayStr ? (match.challengerUser ? '#60a5fa' : '#f87171') : '#facc15' 
-                        }}>
-                            {match.date < todayStr ? (match.challengerUser ? 'PLAYED' : 'EXPIRED') : 'UPCOMING'}
-                        </span>
-                    </div>
-                    <div className="card-body">
-                        <p style={{color: '#aaa', margin:0, display:'flex', alignItems:'center', gap:'5px'}}>📅 {match.date}</p>
-                        <p style={{color: '#aaa', margin:'5px 0 0 0', display:'flex', alignItems:'center', gap:'5px'}}>⏰ {match.startTime}</p>
-                        <div style={{marginTop:'15px', padding:'10px', background:'rgba(255,255,255,0.05)', borderRadius:'8px'}}>
-                            <p style={{margin:0, fontSize:'0.85rem', color:'#888'}}>Host Team</p>
-                            <p style={{margin:0, color:'white', fontWeight:'bold'}}>{match.adHocTeamName}</p>
-                        </div>
-                        {(() => {
-                          const matchDateTime = new Date(`${match.date}T${match.endTime || match.startTime}:00`);
-                          const isPast = matchDateTime < new Date();
-                          return (
-                            <>
-                              {match.status === 'Closed' && !match.attendanceReported && match.challengerUser && match.isHost && isPast && (
-                                <div style={{marginTop:'12px', padding:'10px', border:'1px solid #3b82f6', borderRadius:'8px'}}>
-                                  <p style={{margin:'0 0 8px 0', color:'#bfdbfe', fontSize:'0.85rem'}}>
-                                    Did the challenger ({match.challengerUser?.name || 'Player'}) show up to the match?
-                                  </p>
-                                  <div style={{display:'flex', gap:'8px'}}>
-                                    <button onClick={(e) => { e.stopPropagation(); reportAttendance(match._id, true); }} className="confirm-btn">Yes, they played</button>
-                                    <button onClick={(e) => { e.stopPropagation(); reportAttendance(match._id, false); }} className="delete-btn">No, they flaked / No-Show</button>
-                                  </div>
-                                </div>
-                              )}
-                              {match.status === 'Closed' && !match.attendanceReported && match.challengerUser && !match.isHost && isPast && (
-                                <div style={{marginTop:'12px', color:'#aaa', fontSize:'0.85rem', fontStyle:'italic'}}>Waiting for host to report attendance.</div>
-                              )}
-                              {match.status === 'Closed' && !match.challengerUser && (
-                                <div style={{marginTop:'12px', color:'#aaa', fontSize:'0.85rem', fontStyle:'italic'}}>Match expired without an accepted challenge.</div>
-                              )}
-                              {match.attendanceReported === true && (
-                                <div style={{marginTop:'12px', color:'#34d399', fontSize:'0.85rem', fontWeight:'bold'}}>Attendance Reported</div>
-                              )}
-                            </>
-                          );
-                        })()}
-                    </div>
+              <div 
+                key={match._id || i} 
+                className="card"
+                style={{ 
+                  background: 'rgba(255,255,255,0.03)', 
+                  border: '1px solid rgba(255,255,255,0.08)', 
+                  borderRadius: '24px',
+                  padding: '1.5rem'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800', color: 'white' }}>{match.court?.name}</h3>
+                  <span style={{ 
+                    background: match.date < todayStr ? (match.challengerUser ? 'rgba(59, 130, 246, 0.1)' : 'rgba(239, 68, 68, 0.1)') : 'rgba(250, 204, 21, 0.1)', 
+                    color: match.date < todayStr ? (match.challengerUser ? '#60a5fa' : '#f87171') : '#facc15',
+                    padding: '4px 10px',
+                    borderRadius: '8px',
+                    fontSize: '0.6rem',
+                    fontWeight: '900',
+                    textTransform: 'uppercase'
+                  }}>
+                    {match.date < todayStr ? (match.challengerUser ? 'PLAYED' : 'EXPIRED') : 'UPCOMING'}
+                  </span>
                 </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#9ca3af', fontSize: '0.85rem' }}>
+                    <Calendar size={16} /> {match.date}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#9ca3af', fontSize: '0.85rem' }}>
+                    <Clock size={16} /> {match.startTime}
+                  </div>
+                </div>
+
+                <div style={{ marginTop: '1.25rem', padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <p style={{ margin: 0, fontSize: '0.65rem', color: '#6b7280', fontWeight: '800', textTransform: 'uppercase' }}>Host Team</p>
+                  <p style={{ margin: '4px 0 0 0', color: 'white', fontWeight: '800', fontSize: '0.9rem' }}>{match.adHocTeamName}</p>
+                </div>
+
+                {(() => {
+                  const matchDateTime = new Date(`${match.date}T${match.endTime || match.startTime}:00`);
+                  const isPast = matchDateTime < new Date();
+                  return (
+                    <div style={{ marginTop: '1.25rem' }}>
+                      {match.status === 'Closed' && !match.attendanceReported && match.challengerUser && match.isHost && isPast && (
+                        <div style={{ padding: '12px', background: 'rgba(59, 130, 246, 0.05)', border: '1px solid rgba(59, 130, 246, 0.2)', borderRadius: '14px' }}>
+                          <p style={{ margin: '0 0 10px 0', color: '#bfdbfe', fontSize: '0.8rem', fontWeight: '700' }}>
+                            Report Attendance
+                          </p>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                            <button onClick={(e) => { e.stopPropagation(); reportAttendance(match._id, true); }} style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '8px', borderRadius: '8px', fontWeight: '800', fontSize: '0.7rem', cursor: 'pointer' }}>Yes, played</button>
+                            <button onClick={(e) => { e.stopPropagation(); reportAttendance(match._id, false); }} style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '8px', borderRadius: '8px', fontWeight: '800', fontSize: '0.7rem', cursor: 'pointer' }}>No-Show</button>
+                          </div>
+                        </div>
+                      )}
+                      {match.status === 'Closed' && !match.attendanceReported && match.challengerUser && !match.isHost && isPast && (
+                        <p style={{ margin: 0, color: '#9ca3af', fontSize: '0.75rem', fontStyle: 'italic', textAlign: 'center' }}>Waiting for host attendance report...</p>
+                      )}
+                      {match.attendanceReported && (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', color: '#10b981', fontSize: '0.8rem', fontWeight: '900' }}>
+                          <BadgeCheck size={16} /> ATTENDANCE REPORTED
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
             ))}
-            </div>
+          </div>
         )}
       </div>
+
+      {/* Modals - Refined Styling */}
       {refundModalBooking && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <h3 style={{marginBottom:'10px'}}>Submit Refund Details</h3>
-            <p style={{color:'#aaa', marginBottom:'12px'}}>Court: <strong style={{color:'#fff'}}>{refundModalBooking.court?.name}</strong></p>
-            <div className="form-group">
-              <label>Bank Name</label>
-              <input value={refundForm.refundBankName} onChange={(e)=>setRefundForm({...refundForm, refundBankName:e.target.value})} />
+        <div className="modal-overlay" style={{ backdropFilter: 'blur(10px)', background: 'rgba(0,0,0,0.8)' }}>
+          <div className="modal-content" style={{ borderRadius: '28px', background: '#0a0a0a', border: '1px solid rgba(255,255,255,0.1)', padding: '2.5rem' }}>
+            <h3 style={{ fontSize: '1.5rem', fontWeight: '900', marginBottom: '1.5rem', color: 'white' }}>Submit Refund Details</h3>
+            <div style={{ background: 'rgba(255,255,255,0.03)', padding: '15px', borderRadius: '14px', marginBottom: '1.5rem', border: '1px solid rgba(255,255,255,0.05)' }}>
+               <p style={{ margin: 0, fontSize: '0.7rem', color: '#6b7280', textTransform: 'uppercase', fontWeight: '800' }}>Booking Location</p>
+               <p style={{ margin: '4px 0 0 0', color: 'white', fontWeight: '800' }}>{refundModalBooking.court?.name}</p>
             </div>
-            <div className="form-group">
-              <label>Account Title</label>
-              <input value={refundForm.refundAccountTitle} onChange={(e)=>setRefundForm({...refundForm, refundAccountTitle:e.target.value})} />
+            
+            <div style={{ display: 'grid', gap: '15px' }}>
+              <div className="form-group">
+                <label style={{ color: '#9ca3af', fontSize: '0.85rem', fontWeight: '700', marginBottom: '8px', display: 'block' }}>Bank Name</label>
+                <input style={{ background: '#111', border: '1px solid #222', borderRadius: '12px', padding: '12px', color: 'white', width: '100%' }} value={refundForm.refundBankName} onChange={(e)=>setRefundForm({...refundForm, refundBankName:e.target.value})} />
+              </div>
+              <div className="form-group">
+                <label style={{ color: '#9ca3af', fontSize: '0.85rem', fontWeight: '700', marginBottom: '8px', display: 'block' }}>Account Title</label>
+                <input style={{ background: '#111', border: '1px solid #222', borderRadius: '12px', padding: '12px', color: 'white', width: '100%' }} value={refundForm.refundAccountTitle} onChange={(e)=>setRefundForm({...refundForm, refundAccountTitle:e.target.value})} />
+              </div>
+              <div className="form-group">
+                <label style={{ color: '#9ca3af', fontSize: '0.85rem', fontWeight: '700', marginBottom: '8px', display: 'block' }}>Account Number / IBAN</label>
+                <input style={{ background: '#111', border: '1px solid #222', borderRadius: '12px', padding: '12px', color: 'white', width: '100%' }} value={refundForm.refundAccountNumber} onChange={(e)=>setRefundForm({...refundForm, refundAccountNumber:e.target.value})} />
+              </div>
+              <div className="form-group">
+                <label style={{ color: '#9ca3af', fontSize: '0.85rem', fontWeight: '700', marginBottom: '8px', display: 'block' }}>Contact Number (WhatsApp)</label>
+                <input style={{ background: '#111', border: '1px solid #222', borderRadius: '12px', padding: '12px', color: 'white', width: '100%' }} value={refundForm.refundContactNumber} onChange={(e)=>setRefundForm({...refundForm, refundContactNumber:e.target.value})} />
+              </div>
             </div>
-            <div className="form-group">
-              <label>Account Number</label>
-              <input value={refundForm.refundAccountNumber} onChange={(e)=>setRefundForm({...refundForm, refundAccountNumber:e.target.value})} />
-            </div>
-            <div className="form-group">
-              <label>WhatsApp Number</label>
-              <input value={refundForm.refundContactNumber} onChange={(e)=>setRefundForm({...refundForm, refundContactNumber:e.target.value})} />
-            </div>
-            <div className="modal-actions">
-              <button className="confirm-btn" onClick={submitRefundDetails}>Confirm Refund Details</button>
-              <button className="cancel-btn" onClick={() => setRefundModalBooking(null)}>Cancel</button>
+            
+            <div style={{ display: 'flex', gap: '10px', marginTop: '2rem' }}>
+              <button style={{ flex: 1, background: 'var(--primary-color)', color: 'white', border: 'none', padding: '12px', borderRadius: '14px', fontWeight: '800', cursor: 'pointer' }} onClick={submitRefundDetails}>Submit Details</button>
+              <button style={{ flex: 1, background: 'rgba(255,255,255,0.05)', color: '#9ca3af', border: 'none', padding: '12px', borderRadius: '14px', fontWeight: '800', cursor: 'pointer' }} onClick={() => setRefundModalBooking(null)}>Cancel</button>
             </div>
           </div>
         </div>
       )}
+
       {paymentModalBooking && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <h3 style={{marginBottom:'10px'}}>Submit Payment Proof</h3>
-            <p style={{color:'#ccc', marginBottom:'12px'}}>Submit proof to continue for manager approval.</p>
-            <div className="form-group">
-              <label>Sender Account Name</label>
-              <input value={senderName} onChange={e => setSenderName(e.target.value)} />
+        <div className="modal-overlay" style={{ backdropFilter: 'blur(10px)', background: 'rgba(0,0,0,0.8)' }}>
+          <div className="modal-content" style={{ borderRadius: '28px', background: '#0a0a0a', border: '1px solid rgba(255,255,255,0.1)', padding: '2.5rem' }}>
+            <h3 style={{ fontSize: '1.5rem', fontWeight: '900', marginBottom: '1rem', color: 'white' }}>Submit Payment Proof</h3>
+            <p style={{ color: '#6b7280', fontSize: '0.9rem', marginBottom: '1.5rem' }}>Please enter the details of your transfer for verification.</p>
+            
+            <div style={{ display: 'grid', gap: '15px' }}>
+              <div className="form-group">
+                <label style={{ color: '#9ca3af', fontSize: '0.85rem', fontWeight: '700', marginBottom: '8px', display: 'block' }}>Sender Account Name</label>
+                <input style={{ background: '#111', border: '1px solid #222', borderRadius: '12px', padding: '12px', color: 'white', width: '100%' }} value={senderName} onChange={e => setSenderName(e.target.value)} />
+              </div>
+              <div className="form-group">
+                <label style={{ color: '#9ca3af', fontSize: '0.85rem', fontWeight: '700', marginBottom: '8px', display: 'block' }}>Last 4 Digits of TID</label>
+                <input style={{ background: '#111', border: '1px solid #222', borderRadius: '12px', padding: '12px', color: 'white', width: '100%' }} value={transactionIdShort} onChange={e => setTransactionIdShort(e.target.value.replace(/\D/g, '').slice(0, 4))} maxLength="4" />
+              </div>
             </div>
-            <div className="form-group">
-              <label>Last 4 Digits of TID</label>
-              <input value={transactionIdShort} onChange={e => setTransactionIdShort(e.target.value.replace(/\D/g, '').slice(0, 4))} maxLength="4" pattern="\d{4}" title="Please enter exactly 4 numbers" />
-            </div>
-            <div className="modal-actions">
-              <button className="confirm-btn" onClick={handleSubmitPaymentProof}>Submit Payment Proof</button>
-              <button className="cancel-btn" onClick={() => setPaymentModalBooking(null)}>Close</button>
+            
+            <div style={{ display: 'flex', gap: '10px', marginTop: '2rem' }}>
+              <button style={{ flex: 1, background: 'var(--primary-color)', color: 'white', border: 'none', padding: '12px', borderRadius: '14px', fontWeight: '800', cursor: 'pointer' }} onClick={handleSubmitPaymentProof}>Submit Proof</button>
+              <button style={{ flex: 1, background: 'rgba(255,255,255,0.05)', color: '#9ca3af', border: 'none', padding: '12px', borderRadius: '14px', fontWeight: '800', cursor: 'pointer' }} onClick={() => setPaymentModalBooking(null)}>Close</button>
             </div>
           </div>
         </div>

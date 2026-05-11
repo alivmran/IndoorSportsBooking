@@ -2,6 +2,28 @@ import { useEffect, useState } from 'react';
 import API from '../api/axios';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
+import { 
+  ShieldAlert, 
+  MapPin, 
+  PlusCircle, 
+  Settings, 
+  TrendingUp, 
+  Users, 
+  Home, 
+  AlertTriangle, 
+  Trash2, 
+  Key, 
+  ExternalLink, 
+  Clock, 
+  CreditCard,
+  Building2,
+  Trophy,
+  Activity,
+  Layers,
+  Sparkles,
+  Camera,
+  ChevronRight
+} from 'lucide-react';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -12,7 +34,7 @@ const AdminDashboard = () => {
     amenities: [],
     paymentBank: '', paymentAccountTitle: '', paymentAccountNumber: '', advanceRequired: '',
     operationalStartTime: '00:00', operationalEndTime: '24:00',
-    pricePerHour: '', priceWeekend: '', managerName: '', managerEmail: '', notificationEmail: ''
+    pricePerHour: '', priceWeekend: '', managerName: '', managerEmail: '', managerMobile: '', notificationEmail: ''
   });
   const [images, setImages] = useState([]);
   const hourOptions = Array.from({ length: 25 }, (_, h) => `${h.toString().padStart(2, '0')}:00`);
@@ -52,7 +74,7 @@ const AdminDashboard = () => {
         amenities: [],
         paymentBank: '', paymentAccountTitle: '', paymentAccountNumber: '', advanceRequired: '',
         operationalStartTime: '00:00', operationalEndTime: '24:00',
-        pricePerHour: '', priceWeekend: '', managerName: '', managerEmail: '', notificationEmail: ''
+        pricePerHour: '', priceWeekend: '', managerName: '', managerEmail: '', managerMobile: '', notificationEmail: ''
       });
       setImages([]);
       fetchData();
@@ -90,11 +112,13 @@ const AdminDashboard = () => {
     if (!name) return;
     const email = window.prompt("Enter Manager Login Email (e.g. demo account):");
     if (!email) return;
+    const mobile = window.prompt("Enter Manager WhatsApp / Mobile Number:");
+    if (!mobile) return;
     const notifEmail = window.prompt("Enter Manager's Actual Email for Notifications (optional):");
     const password = window.prompt("Enter Initial Password for Manager:");
     if (!password) return;
     try {
-        const res = await API.post('/admin/assign-manager', { courtId, managerName: name, managerEmail: email, notificationEmail: notifEmail, password });
+        const res = await API.post('/admin/assign-manager', { courtId, managerName: name, managerEmail: email, managerMobile: mobile, notificationEmail: notifEmail, password });
         toast.success(`Assigned! Password: ${res.data.manager.password}`);
         fetchData();
     } catch (error) { toast.error(error.response?.data?.message || 'Failed'); }
@@ -110,215 +134,347 @@ const AdminDashboard = () => {
   };
 
   return (
-    <div className="page-container">
-      <h1 className="page-title">Super Admin Panel</h1>
+    <div className="page-container" style={{ padding: '0 20px', maxWidth: '1400px', margin: '0 auto' }}>
+      {/* Super Admin Header */}
+      <div style={{ marginBottom: '2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '20px' }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#3b82f6', marginBottom: '8px' }}>
+            <ShieldAlert size={18} />
+            <span style={{ fontSize: '0.8rem', fontWeight: '800', letterSpacing: '2px', textTransform: 'uppercase' }}>System Governance</span>
+          </div>
+          <h1 style={{ margin: 0, fontSize: '2.4rem', fontWeight: '900', color: 'white', letterSpacing: '-1px' }}>Admin Panel</h1>
+          <p style={{ color: '#9ca3af', marginTop: '4px', fontSize: '1rem' }}>Global facility management and system-wide analytics.</p>
+        </div>
+      </div>
       
-      {/* STATS */}
-      <div className="stats-grid">
-        <div className="stat-card" style={{borderColor: '#3b82f6'}}><h3>Total Courts</h3><p className="stat-value">{data.courts.length}</p></div>
-        <div className="stat-card" style={{borderColor: '#10b981'}}><h3>Total Revenue</h3><p className="stat-value">PKR {data.stats?.totalRevenue?.toLocaleString() || 0}</p></div>
-        <div className="stat-card"><h3>Total Bookings</h3><p className="stat-value">{data.stats?.totalBookings || 0}</p></div>
-        <div className="stat-card" style={{borderColor:'#ef4444'}}><h3>Disputes</h3><p className="stat-value" style={{color:'#f87171'}}>{data.stats?.pendingDisputes || 0}</p></div>
+      {/* STATS OVERVIEW */}
+      <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '2.5rem' }}>
+        <div style={{ background: 'rgba(255,255,255,0.03)', padding: '1.5rem', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.08)', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', right: '-10px', top: '-10px', opacity: 0.05 }}><Building2 size={80} color="white" /></div>
+          <p style={{ margin: 0, fontSize: '0.75rem', color: '#9ca3af', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px' }}>Active Facilities</p>
+          <p style={{ margin: '8px 0 0 0', fontSize: '2rem', color: 'white', fontWeight: '900' }}>{data.courts.length}</p>
+        </div>
+        <div style={{ background: 'rgba(16, 185, 129, 0.03)', padding: '1.5rem', borderRadius: '24px', border: '1px solid rgba(16, 185, 129, 0.1)', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', right: '-10px', top: '-10px', opacity: 0.05 }}><TrendingUp size={80} color="#10b981" /></div>
+          <p style={{ margin: 0, fontSize: '0.75rem', color: '#10b981', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px' }}>Gross Revenue</p>
+          <p style={{ margin: '8px 0 0 0', fontSize: '2rem', color: 'white', fontWeight: '900' }}>PKR {data.stats?.totalRevenue?.toLocaleString() || 0}</p>
+        </div>
+        <div style={{ background: 'rgba(59, 130, 246, 0.03)', padding: '1.5rem', borderRadius: '24px', border: '1px solid rgba(59, 130, 246, 0.1)', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', right: '-10px', top: '-10px', opacity: 0.05 }}><Trophy size={80} color="#3b82f6" /></div>
+          <p style={{ margin: 0, fontSize: '0.75rem', color: '#3b82f6', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px' }}>Total Bookings</p>
+          <p style={{ margin: '8px 0 0 0', fontSize: '2rem', color: 'white', fontWeight: '900' }}>{data.stats?.totalBookings || 0}</p>
+        </div>
+        <div style={{ background: data.stats?.pendingDisputes > 0 ? 'rgba(239, 68, 68, 0.08)' : 'rgba(255,255,255,0.03)', padding: '1.5rem', borderRadius: '24px', border: data.stats?.pendingDisputes > 0 ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(255,255,255,0.08)', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', right: '-10px', top: '-10px', opacity: 0.05 }}><AlertTriangle size={80} color="#ef4444" /></div>
+          <p style={{ margin: 0, fontSize: '0.75rem', color: '#ef4444', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px' }}>Active Disputes</p>
+          <p style={{ margin: '8px 0 0 0', fontSize: '2rem', color: data.stats?.pendingDisputes > 0 ? '#f87171' : 'white', fontWeight: '900' }}>{data.stats?.pendingDisputes || 0}</p>
+        </div>
       </div>
 
-      <div className="match-tabs">
-        <button className={`tab-btn ${activeTab === 'courts' ? 'active' : ''}`} onClick={() => setActiveTab('courts')}>Courts</button>
-        <button className={`tab-btn ${activeTab === 'disputes' ? 'active' : ''}`} onClick={() => setActiveTab('disputes')}>
-          Disputes <span className="badge" style={{marginLeft:'6px', background:'rgba(239,68,68,0.2)', color:'#f87171'}}>{data.disputes?.length || 0}</span>
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '2rem', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '10px' }}>
+        <button 
+          onClick={() => setActiveTab('courts')}
+          style={{ 
+            background: activeTab === 'courts' ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+            color: activeTab === 'courts' ? '#3b82f6' : '#6b7280',
+            border: 'none',
+            padding: '10px 20px',
+            borderRadius: '12px',
+            cursor: 'pointer',
+            fontWeight: '800',
+            fontSize: '0.9rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            transition: 'all 0.2s'
+          }}
+        >
+          <Building2 size={18} /> Facility Management
+        </button>
+        <button 
+          onClick={() => setActiveTab('disputes')}
+          style={{ 
+            background: activeTab === 'disputes' ? 'rgba(239, 68, 68, 0.1)' : 'transparent',
+            color: activeTab === 'disputes' ? '#ef4444' : '#6b7280',
+            border: 'none',
+            padding: '10px 20px',
+            borderRadius: '12px',
+            cursor: 'pointer',
+            fontWeight: '800',
+            fontSize: '0.9rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            transition: 'all 0.2s'
+          }}
+        >
+          <AlertTriangle size={18} /> Resolution Center
+          <span style={{ 
+            background: '#ef4444', 
+            color: 'white', 
+            fontSize: '0.6rem', 
+            padding: '2px 6px', 
+            borderRadius: '6px',
+            marginLeft: '4px'
+          }}>
+            {data.disputes?.length || 0}
+          </span>
         </button>
       </div>
 
-      {activeTab === 'courts' && <div className="dashboard-layout">
-        {/* CREATE FORM */}
-        <div className="form-container" style={{margin:0, maxWidth:'100%', textAlign:'left'}}>
-            <h2>Add New Facility</h2>
-            <form onSubmit={handleCreate}>
-                <div className="form-row">
-                    <div className="form-group"><label>Court Name</label><input value={form.courtName} onChange={e=>setForm({...form, courtName:e.target.value})} required /></div>
-                    <div className="form-group">
-                      <label>Facilities</label>
-                      <div style={{display:'flex', flexWrap:'wrap', gap:'8px', marginTop:'8px'}}>
-                        {['Futsal', 'Padel', 'Cricket'].map((sport) => (
-                          <button
-                            key={sport}
-                            type="button"
-                            onClick={() => toggleFacility(sport)}
-                            style={{
-                              border:'1px solid',
-                              borderColor: form.facilities.includes(sport) ? '#3b82f6' : '#334155',
-                              background: form.facilities.includes(sport) ? 'rgba(59,130,246,0.2)' : '#111827',
-                              color: form.facilities.includes(sport) ? '#bfdbfe' : '#cbd5e1',
-                              borderRadius:'8px',
-                              padding:'10px',
-                              cursor:'pointer',
-                              fontWeight:'700'
-                            }}
-                          >
-                            {sport}
-                          </button>
-                        ))}
-                      </div>
+      {activeTab === 'courts' && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '2.5rem', alignItems: 'start' }}>
+          {/* Create Facility Form */}
+          <div style={{ background: 'rgba(255,255,255,0.03)', padding: '2.5rem', borderRadius: '30px', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '2rem' }}>
+              <div style={{ padding: '10px', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '12px' }}><PlusCircle color="#3b82f6" /></div>
+              <h2 style={{ margin: 0, fontSize: '1.6rem', fontWeight: '900', color: 'white' }}>Onboard New Facility</h2>
+            </div>
+
+            <form onSubmit={handleCreate} style={{ display: 'grid', gap: '2rem' }}>
+              {/* Basic Info */}
+              <div>
+                <h3 style={{ fontSize: '0.9rem', color: '#60a5fa', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '1.25rem' }}>Core Details</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className="form-group">
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#9ca3af', fontSize: '0.8rem', fontWeight: '700', marginBottom: '8px' }}><Home size={14} /> COURT NAME</label>
+                    <input style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '12px', color: 'white', width: '100%' }} value={form.courtName} onChange={e=>setForm({...form, courtName:e.target.value})} placeholder="The Arena" required />
+                  </div>
+                  <div className="form-group">
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#9ca3af', fontSize: '0.8rem', fontWeight: '700', marginBottom: '8px' }}><Layers size={14} /> SPORTS FACILITIES</label>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      {['Futsal', 'Padel', 'Cricket'].map((sport) => (
+                        <button key={sport} type="button" onClick={() => toggleFacility(sport)} style={{ flex: 1, padding: '10px 5px', borderRadius: '10px', fontSize: '0.7rem', fontWeight: '900', cursor: 'pointer', border: '1px solid', borderColor: form.facilities.includes(sport) ? '#3b82f6' : '#1e293b', background: form.facilities.includes(sport) ? 'rgba(59, 130, 246, 0.15)' : 'transparent', color: form.facilities.includes(sport) ? '#60a5fa' : '#475569', transition: 'all 0.2s' }}>{sport}</button>
+                      ))}
                     </div>
+                  </div>
                 </div>
-                <div className="form-group"><label>Location</label><input value={form.location} onChange={e=>setForm({...form, location:e.target.value})} required /></div>
-                <div className="form-group"><label>Google Maps Link</label><input value={form.googleMapLink} onChange={e=>setForm({...form, googleMapLink:e.target.value})} placeholder="https://maps.google.com/..." /></div>
-                <div className="form-group">
-                  <label>Amenities (select up to 5)</label>
-                  <div style={{display:'flex', flexWrap:'wrap', gap:'8px', marginTop:'8px'}}>
+                <div style={{ marginTop: '1rem' }}>
+                   <label style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#9ca3af', fontSize: '0.8rem', fontWeight: '700', marginBottom: '8px' }}><MapPin size={14} /> LOCATION & MAP</label>
+                   <div style={{ display: 'grid', gap: '10px' }}>
+                     <input style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '12px', color: 'white', width: '100%' }} value={form.location} onChange={e=>setForm({...form, location:e.target.value})} placeholder="Street, Area, City..." required />
+                     <input style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '12px', color: 'white', width: '100%', fontSize: '0.8rem' }} value={form.googleMapLink} onChange={e=>setForm({...form, googleMapLink:e.target.value})} placeholder="Google Maps Embed Link (Optional)" />
+                   </div>
+                </div>
+              </div>
+
+              {/* Pricing & Amenities */}
+              <div>
+                <h3 style={{ fontSize: '0.9rem', color: '#10b981', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '1.25rem' }}>Pricing & Operations</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className="form-group">
+                    <label style={{ color: '#9ca3af', fontSize: '0.8rem', fontWeight: '700', marginBottom: '8px', display: 'block' }}>WEEKDAY PRICE (PKR)</label>
+                    <input type="number" style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '12px', color: 'white', width: '100%' }} value={form.pricePerHour} onChange={e=>setForm({...form, pricePerHour:e.target.value})} required />
+                  </div>
+                  <div className="form-group">
+                    <label style={{ color: '#9ca3af', fontSize: '0.8rem', fontWeight: '700', marginBottom: '8px', display: 'block' }}>WEEKEND PRICE (PKR)</label>
+                    <input type="number" style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '12px', color: 'white', width: '100%' }} value={form.priceWeekend} onChange={e=>setForm({...form, priceWeekend:e.target.value})} />
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+                  <div className="form-group">
+                    <label style={{ color: '#9ca3af', fontSize: '0.8rem', fontWeight: '700', marginBottom: '8px', display: 'block' }}>OPENING TIME</label>
+                    <select style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '12px', color: 'white', width: '100%' }} value={form.operationalStartTime} onChange={e=>setForm({...form, operationalStartTime:e.target.value})}>
+                      {hourOptions.slice(0, 24).map((h) => <option key={h} value={h}>{h}</option>)}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label style={{ color: '#9ca3af', fontSize: '0.8rem', fontWeight: '700', marginBottom: '8px', display: 'block' }}>CLOSING TIME</label>
+                    <select style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '12px', color: 'white', width: '100%' }} value={form.operationalEndTime} onChange={e=>setForm({...form, operationalEndTime:e.target.value})}>
+                      {hourOptions.slice(1).map((h) => <option key={h} value={h}>{h}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div style={{ marginTop: '1.25rem' }}>
+                  <label style={{ color: '#9ca3af', fontSize: '0.8rem', fontWeight: '700', marginBottom: '10px', display: 'block' }}>PREMIUM AMENITIES</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                     {['Parking', 'Showers', 'Cafe', 'Floodlights', 'Changing Room'].map((amenity) => (
-                      <button
-                        key={amenity}
-                        type="button"
-                        onClick={() => toggleAmenity(amenity)}
-                        style={{
-                          border:'1px solid',
-                          borderColor: form.amenities.includes(amenity) ? '#10b981' : '#334155',
-                          background: form.amenities.includes(amenity) ? 'rgba(16,185,129,0.2)' : '#111827',
-                          color: form.amenities.includes(amenity) ? '#a7f3d0' : '#cbd5e1',
-                          borderRadius:'8px',
-                          padding:'10px',
-                          cursor:'pointer',
-                          fontWeight:'700'
-                        }}
-                      >
-                        {amenity}
-                      </button>
+                      <button key={amenity} type="button" onClick={() => toggleAmenity(amenity)} style={{ padding: '8px 14px', borderRadius: '10px', fontSize: '0.75rem', fontWeight: '800', cursor: 'pointer', border: '1px solid', borderColor: form.amenities.includes(amenity) ? '#10b981' : '#1e293b', background: form.amenities.includes(amenity) ? 'rgba(16, 185, 129, 0.15)' : 'transparent', color: form.amenities.includes(amenity) ? '#34d399' : '#6b7280', transition: 'all 0.2s' }}>{amenity}</button>
                     ))}
                   </div>
                 </div>
-                <div className="form-row">
-                    <div className="form-group"><label>Price (Weekday)</label><input type="number" value={form.pricePerHour} onChange={e=>setForm({...form, pricePerHour:e.target.value})} required /></div>
-                    <div className="form-group"><label>Price (Weekend)</label><input type="number" value={form.priceWeekend} onChange={e=>setForm({...form, priceWeekend:e.target.value})} /></div>
-                </div>
-                <div className="form-row">
-                    <div className="form-group">
-                      <label>Operational Start</label>
-                      <select value={form.operationalStartTime} onChange={e=>setForm({...form, operationalStartTime:e.target.value})}>
-                        {hourOptions.slice(0, 24).map((h) => <option key={h} value={h}>{h}</option>)}
-                      </select>
-                    </div>
-                    <div className="form-group">
-                      <label>Operational End</label>
-                      <select value={form.operationalEndTime} onChange={e=>setForm({...form, operationalEndTime:e.target.value})}>
-                        {hourOptions.slice(1).map((h) => <option key={h} value={h}>{h}</option>)}
-                      </select>
-                    </div>
-                </div>
-                <div className="form-row">
-                    <div className="form-group"><label>Bank / Wallet Name</label><input value={form.paymentBank} onChange={e=>setForm({...form, paymentBank:e.target.value})} required /></div>
-                    <div className="form-group"><label>Account Title</label><input value={form.paymentAccountTitle} onChange={e=>setForm({...form, paymentAccountTitle:e.target.value})} required /></div>
-                </div>
-                <div className="form-row">
-                    <div className="form-group"><label>Account Number</label><input value={form.paymentAccountNumber} onChange={e=>setForm({...form, paymentAccountNumber:e.target.value})} required /></div>
-                    <div className="form-group"><label>Advance Required (PKR)</label><input type="number" min="0" value={form.advanceRequired} onChange={e=>setForm({...form, advanceRequired:e.target.value})} placeholder="Optional" /></div>
-                </div>
-                <hr style={{borderColor:'var(--border-color)', margin:'1rem 0'}}/>
-                <h3>Assign Manager</h3>
-                <div className="form-row">
-                    <div className="form-group"><label>Name</label><input value={form.managerName} onChange={e=>setForm({...form, managerName:e.target.value})} required /></div>
-                    <div className="form-group"><label>Login Email (Demo Acct)</label><input type="email" value={form.managerEmail} onChange={e=>setForm({...form, managerEmail:e.target.value})} required /></div>
-                </div>
-                <div className="form-group"><label>Actual Email for Notifications (Optional)</label><input type="email" value={form.notificationEmail} onChange={e=>setForm({...form, notificationEmail:e.target.value})} /></div>
-                <div className="form-group">
-                    <label>Court Images (Max 5)</label>
-                    <input type="file" multiple accept="image/*" onChange={(e) => setImages(e.target.files)} style={{background: 'var(--bg-input)', padding: '10px'}} />
-                </div>
-                <button type="submit" className="confirm-btn">Create System</button>
-            </form>
-        </div>
+              </div>
 
-        {/* COURT LIST WITH MANAGE BUTTON */}
-        <div className="activity-section">
-            <h2>Active Facilities</h2>
-            <div className="courts-list" style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(320px, 1fr))', gap:'1.5rem'}}>
-                {data.courts.length === 0 && <p style={{color:'#888'}}>No facilities active.</p>}
-                {data.courts.map(court => (
-                    <div key={court._id} style={{background:'var(--bg-input)', padding:'1rem', borderRadius:'8px', border:'1px solid var(--border-color)'}}>
-                        <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start'}}>
-                            <div>
-                                <h3 style={{margin:0, color:'var(--primary-color)'}}>{court.name}</h3>
-                                <p style={{fontSize:'0.85rem', color:'#aaa', margin:'5px 0'}}>{court.location} • {(court.facilities || []).join(', ')}</p>
-                                <div style={{fontSize:'0.8rem', background:'rgba(255,255,255,0.05)', padding:'5px', borderRadius:'4px', marginTop:'5px'}}>
-                                    Manager: <span style={{color:'white'}}>{court.manager?.email || 'Unassigned'}</span>
-                                </div>
-                            </div>
-                            <div style={{display:'flex', flexDirection:'column', gap:'5px'}}>
-                                {/* MANAGE BUTTON */}
-                                <button 
-                                    onClick={() => navigate(`/courts/${court._id}`)} 
-                                    style={{background:'#3b82f6', border:'none', color:'white', padding:'6px 12px', borderRadius:'4px', cursor:'pointer', fontWeight:'600'}}
-                                >
-                                    Manage
-                                </button>
-                                {(!court.manager || !court.manager.email) && (
-                                    <button 
-                                        onClick={() => handleAssignManager(court._id)} 
-                                        style={{background:'#10b981', border:'none', color:'white', padding:'6px 12px', borderRadius:'4px', cursor:'pointer'}}
-                                    >
-                                        Assign
-                                    </button>
-                                )}
-                                {(court.manager && court.manager.email) && (
-                                    <button 
-                                        onClick={() => handleResetPassword(court.manager._id)} 
-                                        style={{background:'transparent', border:'1px solid #facc15', color:'#facc15', padding:'6px 12px', borderRadius:'4px', cursor:'pointer'}}
-                                    >
-                                        Reset Pass
-                                    </button>
-                                )}
-                                {/* DELETE BUTTON */}
-                                <button 
-                                    onClick={() => handleDelete(court._id)} 
-                                    style={{background:'transparent', border:'1px solid #ef4444', color:'#ef4444', padding:'6px 12px', borderRadius:'4px', cursor:'pointer'}}
-                                >
-                                    Delete
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </div>
-      </div>}
-      {activeTab === 'disputes' && <div className="activity-section" style={{marginTop:'1rem'}}>
-        <h2 style={{display:'flex', alignItems:'center', gap:'10px'}}>
-          Disputes
-          <span className="badge" style={{background:'rgba(239,68,68,0.2)', color:'#f87171'}}>{data.disputes?.length || 0}</span>
-        </h2>
-        {!data.disputes || data.disputes.length === 0 ? (
-          <p style={{color:'#9ca3af'}}>No disputes pending.</p>
-        ) : (
-          <div style={{display:'grid', gap:'10px', marginTop:'10px'}}>
-            {data.disputes.map((d) => (
-              <div key={d._id} style={{border:'1px solid rgba(239,68,68,0.4)', borderRadius:'10px', padding:'12px', background:'rgba(239,68,68,0.08)'}}>
-                <div style={{display:'flex', justifyContent:'space-between', gap:'10px', flexWrap:'wrap'}}>
-                  <div>
-                    <div style={{fontWeight:'700', color:'#fff'}}>{d.court?.name || 'Court'} - {d.user?.name || 'User'}</div>
-                    <div style={{fontSize:'0.9rem', color:'#ddd'}}>Reason: {d.disputeReason || 'No reason provided'}</div>
-                    <div style={{fontSize:'0.82rem', color:'#fca5a5'}}>Refund TID: {d.refundTransactionId || '-'}</div>
-                      <div style={{fontSize:'0.86rem', color:'#fde68a', marginTop:'6px'}}>User Refund Details: {d.refundBankName || '-'} | {d.refundAccountTitle || '-'} | {d.refundAccountNumber || '-'} | WhatsApp: {d.refundContactNumber || '-'}</div>
-                      <div style={{fontSize:'0.86rem', color:'#bfdbfe', marginTop:'4px'}}>Manager: {d.court?.manager?.name || '-'} ({d.court?.manager?.email || '-'})</div>
-                  </div>
-                  <button
-                    onClick={async () => {
-                      try {
-                        await API.put(`/admin/disputes/${d._id}/resolve`);
-                        toast.success('Dispute marked resolved');
-                        fetchData();
-                      } catch (error) {
-                        toast.error(error.response?.data?.message || 'Failed to resolve dispute');
-                      }
-                    }}
-                    style={{background:'#ef4444', border:'none', color:'white', padding:'8px 12px', borderRadius:'6px', cursor:'pointer', fontWeight:'700'}}
-                  >
-                    Mark Resolved
-                  </button>
+              {/* Payment & Manager */}
+              <div>
+                <h3 style={{ fontSize: '0.9rem', color: '#facc15', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '1.25rem' }}>Management & Finance</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                   <div className="form-group">
+                     <label style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#9ca3af', fontSize: '0.8rem', fontWeight: '700', marginBottom: '8px' }}><CreditCard size={14} /> BANK NAME</label>
+                     <input style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '12px', color: 'white', width: '100%' }} value={form.paymentBank} onChange={e=>setForm({...form, paymentBank:e.target.value})} required />
+                   </div>
+                   <div className="form-group">
+                     <label style={{ color: '#9ca3af', fontSize: '0.8rem', fontWeight: '700', marginBottom: '8px', display: 'block' }}>ADVANCE (PKR)</label>
+                     <input type="number" style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '12px', color: 'white', width: '100%' }} value={form.advanceRequired} onChange={e=>setForm({...form, advanceRequired:e.target.value})} placeholder="0" />
+                   </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+                   <div className="form-group"><label style={{ color: '#9ca3af', fontSize: '0.8rem', fontWeight: '700', marginBottom: '8px', display: 'block' }}>ACCOUNT TITLE</label><input style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '12px', color: 'white', width: '100%' }} value={form.paymentAccountTitle} onChange={e=>setForm({...form, paymentAccountTitle:e.target.value})} required /></div>
+                   <div className="form-group"><label style={{ color: '#9ca3af', fontSize: '0.8rem', fontWeight: '700', marginBottom: '8px', display: 'block' }}>ACCOUNT NUMBER</label><input style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '12px', color: 'white', width: '100%' }} value={form.paymentAccountNumber} onChange={e=>setForm({...form, paymentAccountNumber:e.target.value})} required /></div>
+                </div>
+                <div style={{ marginTop: '2rem', padding: '1.5rem', background: 'rgba(59, 130, 246, 0.05)', borderRadius: '20px', border: '1px solid rgba(59, 130, 246, 0.1)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1.25rem' }}><Users size={18} color="#3b82f6" /><span style={{ fontWeight: '900', fontSize: '0.9rem', color: 'white' }}>Assigned Manager Account</span></div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div className="form-group"><input style={{ background: '#0a0f1d', border: '1px solid #1e293b', borderRadius: '12px', padding: '10px', color: 'white', width: '100%', fontSize: '0.85rem' }} value={form.managerName} onChange={e=>setForm({...form, managerName:e.target.value})} placeholder="Manager Name" required /></div>
+                  <div className="form-group"><input type="email" style={{ background: '#0a0f1d', border: '1px solid #1e293b', borderRadius: '12px', padding: '10px', color: 'white', width: '100%', fontSize: '0.85rem' }} value={form.managerEmail} onChange={e=>setForm({...form, managerEmail:e.target.value})} placeholder="Login Email (Demo)" required /></div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '10px' }}>
+                  <input type="tel" style={{ background: '#0a0f1d', border: '1px solid #1e293b', borderRadius: '12px', padding: '10px', color: 'white', width: '100%', fontSize: '0.85rem' }} value={form.managerMobile} onChange={e=>setForm({...form, managerMobile:e.target.value})} placeholder="Manager WhatsApp / Mobile" required />
+                  <input type="email" style={{ background: '#0a0f1d', border: '1px solid #1e293b', borderRadius: '12px', padding: '10px', color: 'white', width: '100%', fontSize: '0.85rem' }} value={form.notificationEmail} onChange={e=>setForm({...form, notificationEmail:e.target.value})} placeholder="Notification Email (Actual)" />
                 </div>
               </div>
-            ))}
+            </div>
+
+              <div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#9ca3af', fontSize: '0.8rem', fontWeight: '700', marginBottom: '10px' }}><Camera size={16} /> FACILITY IMAGES (MAX 5)</label>
+                <div style={{ border: '2px dashed #1e293b', padding: '20px', borderRadius: '15px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.2s' }}>
+                  <input type="file" multiple accept="image/*" onChange={(e) => setImages(e.target.files)} style={{ opacity: 0, position: 'absolute', width: '100%', height: '100%', cursor: 'pointer' }} />
+                  <Sparkles size={24} color="#64748b" style={{ marginBottom: '10px' }} />
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b', fontWeight: '700' }}>Click to upload or drag & drop</p>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '0.7rem', color: '#475569' }}>High resolution landscape photos recommended</p>
+                  {images.length > 0 && <p style={{ marginTop: '10px', color: '#10b981', fontWeight: '800', fontSize: '0.85rem' }}>{images.length} file(s) selected</p>}
+                </div>
+              </div>
+
+              <button type="submit" style={{ background: 'var(--primary-color)', color: 'white', border: 'none', padding: '18px', borderRadius: '16px', fontWeight: '900', fontSize: '1rem', cursor: 'pointer', boxShadow: '0 10px 25px rgba(37, 99, 235, 0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+                <Activity size={20} /> Initialize Facility Network
+              </button>
+            </form>
           </div>
-        )}
-      </div>}
+
+          {/* Active Facilities List */}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '2rem' }}>
+              <div style={{ padding: '10px', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '12px' }}><Activity color="#10b981" /></div>
+              <h2 style={{ margin: 0, fontSize: '1.6rem', fontWeight: '900', color: 'white' }}>Active Network</h2>
+            </div>
+            
+            <div style={{ display: 'grid', gap: '1.25rem' }}>
+              {data.courts.length === 0 && (
+                <div style={{ padding: '3rem', textAlign: 'center', background: 'rgba(255,255,255,0.02)', borderRadius: '24px', border: '1px dashed rgba(255,255,255,0.1)' }}>
+                  <p style={{ color: '#6b7280' }}>No facilities have been onboarded yet.</p>
+                </div>
+              )}
+              {data.courts.map(court => (
+                <div key={court._id} style={{ background: 'rgba(255,255,255,0.03)', padding: '1.5rem', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.08)', transition: 'transform 0.2s' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1 }}>
+                      <h3 style={{ margin: 0, color: 'white', fontSize: '1.2rem', fontWeight: '900' }}>{court.name}</h3>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#9ca3af', fontSize: '0.85rem', marginTop: '6px' }}>
+                        <MapPin size={14} /> {court.location}
+                      </div>
+                      <div style={{ display: 'flex', gap: '6px', marginTop: '10px' }}>
+                        {(court.facilities || []).map(f => (
+                          <span key={f} style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#60a5fa', fontSize: '0.65rem', fontWeight: '900', padding: '4px 8px', borderRadius: '6px', textTransform: 'uppercase' }}>{f}</span>
+                        ))}
+                      </div>
+                      <div style={{ marginTop: '15px', padding: '10px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', fontSize: '0.8rem' }}>
+                        <div style={{ color: '#6b7280', fontSize: '0.65rem', fontWeight: '800', textTransform: 'uppercase', marginBottom: '4px' }}>Assigned Manager</div>
+                        <div style={{ color: 'white', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <Users size={12} color="#3b82f6" /> {court.manager?.email || 'Unassigned'}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <button onClick={() => navigate(`/courts/${court._id}`)} style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '10px', fontWeight: '800', fontSize: '0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                        <ExternalLink size={14} /> Manage
+                      </button>
+                      {(!court.manager || !court.manager.email) && (
+                        <button onClick={() => handleAssignManager(court._id)} style={{ background: '#10b981', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '10px', fontWeight: '800', fontSize: '0.75rem', cursor: 'pointer' }}>
+                          Assign
+                        </button>
+                      )}
+                      {(court.manager && court.manager.email) && (
+                        <button onClick={() => handleResetPassword(court.manager._id)} style={{ background: 'transparent', color: '#facc15', border: '1px solid rgba(250, 204, 21, 0.3)', padding: '8px 16px', borderRadius: '10px', fontWeight: '800', fontSize: '0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                          <Key size={14} /> Reset Pass
+                        </button>
+                      )}
+                      <button onClick={() => handleDelete(court._id)} style={{ background: 'transparent', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '8px 16px', borderRadius: '10px', fontWeight: '800', fontSize: '0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                        <Trash2 size={14} /> Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'disputes' && (
+        <div style={{ animation: 'fadeIn 0.3s ease' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '2rem' }}>
+            <div style={{ padding: '10px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '12px' }}><AlertTriangle color="#ef4444" /></div>
+            <h2 style={{ margin: 0, fontSize: '1.6rem', fontWeight: '900', color: 'white' }}>Dispute Queue</h2>
+          </div>
+
+          {(!data.disputes || data.disputes.length === 0) ? (
+            <div style={{ padding: '4rem', textAlign: 'center', background: 'rgba(255,255,255,0.02)', borderRadius: '30px', border: '1px dashed rgba(255,255,255,0.1)' }}>
+               <ShieldAlert size={48} color="#1e293b" style={{ marginBottom: '1.5rem' }} />
+               <h3 style={{ color: 'white', margin: 0 }}>All Clear</h3>
+               <p style={{ color: '#6b7280', marginTop: '8px' }}>No pending disputes require your attention at this moment.</p>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: '1.5rem' }}>
+              {data.disputes.map((d) => (
+                <div key={d._id} style={{ background: 'rgba(239, 68, 68, 0.03)', border: '1px solid rgba(239, 68, 68, 0.15)', borderRadius: '28px', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'white', fontWeight: '900', fontSize: '1.1rem' }}>
+                        <Users size={18} color="#ef4444" /> {d.user?.name || 'Anonymous User'}
+                      </div>
+                      <div style={{ color: '#f87171', fontSize: '0.8rem', fontWeight: '800', marginTop: '4px' }}>
+                        AT: {d.court?.name || 'Unknown Facility'}
+                      </div>
+                    </div>
+                    <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#f87171', padding: '6px 12px', borderRadius: '10px', fontSize: '0.65rem', fontWeight: '900', textTransform: 'uppercase' }}>URGENT</div>
+                  </div>
+
+                  <div style={{ background: 'rgba(0,0,0,0.2)', padding: '15px', borderRadius: '18px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <p style={{ margin: 0, color: '#6b7280', fontSize: '0.65rem', fontWeight: '800', textTransform: 'uppercase', marginBottom: '8px' }}>User Reported Reason</p>
+                    <p style={{ margin: 0, color: '#ddd', fontSize: '0.9rem', lineHeight: '1.5', fontStyle: 'italic' }}>"{d.disputeReason || 'No reason provided'}"</p>
+                  </div>
+
+                  <div style={{ display: 'grid', gap: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.85rem' }}>
+                      <CreditCard size={16} color="#60a5fa" />
+                      <span style={{ color: '#9ca3af' }}>Refund TID:</span>
+                      <span style={{ color: 'white', fontWeight: '700' }}>{d.refundTransactionId || 'N/A'}</span>
+                    </div>
+                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '14px', fontSize: '0.8rem' }}>
+                      <div style={{ color: '#6b7280', fontSize: '0.6rem', fontWeight: '800', textTransform: 'uppercase', marginBottom: '6px' }}>User Payout Info</div>
+                      <div style={{ color: 'white', fontWeight: '700' }}>{d.refundBankName} | {d.refundAccountTitle}</div>
+                      <div style={{ color: '#3b82f6', marginTop: '2px', fontWeight: '800' }}>{d.refundAccountNumber}</div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button 
+                      onClick={async () => {
+                        try {
+                          await API.put(`/admin/disputes/${d._id}/resolve`);
+                          toast.success('Dispute resolved successfully');
+                          fetchData();
+                        } catch (error) {
+                          toast.error('Failed to resolve');
+                        }
+                      }}
+                      style={{ flex: 1, background: '#ef4444', color: 'white', border: 'none', padding: '12px', borderRadius: '14px', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                    >
+                      <ShieldAlert size={18} /> Mark as Resolved
+                    </button>
+                    <button style={{ background: 'rgba(255,255,255,0.05)', color: '#9ca3af', border: 'none', width: '45px', height: '45px', borderRadius: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                       <Smartphone size={18} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

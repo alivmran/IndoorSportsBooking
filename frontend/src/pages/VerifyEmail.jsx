@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import API from '../api/axios';
 import { toast } from 'react-toastify';
 import AuthContext from '../context/AuthContext';
+import { ShieldCheck, Mail, ArrowRight, RefreshCw } from 'lucide-react';
 
 const VerifyEmail = () => {
   const [code, setCode] = useState('');
@@ -48,31 +49,59 @@ const VerifyEmail = () => {
   };
 
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <h2 className="auth-title">Verify Your Email</h2>
-        <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem', textAlign: 'center' }}>
-          We sent a 6-digit code to <strong>{email}</strong>. Enter it below to complete your registration.
+    <div className="page-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '80vh' }}>
+      <div className="form-container">
+        <div style={{ width: '60px', height: '60px', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+          <ShieldCheck size={32} color="#10b981" />
+        </div>
+        <h2>VERIFY IDENTITY</h2>
+        <p style={{ color: '#9ca3af', marginBottom: '2rem', fontSize: '0.9rem', lineHeight: '1.6' }}>
+          We've sent a secure 6-digit code to <br/>
+          <strong style={{ color: 'white' }}>{email}</strong>
         </p>
-        <form onSubmit={handleSubmit} className="auth-form">
-          <div className="form-group">
-            <label>Verification Code</label>
+
+        <form onSubmit={handleSubmit}>
+          <div className="form-input-group">
+            <Mail className="form-input-icon" size={20} />
             <input 
               type="text" 
               value={code} 
               onChange={(e) => setCode(e.target.value)} 
-              placeholder="123456"
+              placeholder="000000"
               required 
               maxLength="6"
-              style={{ letterSpacing: '0.5rem', textAlign: 'center', fontSize: '1.5rem' }}
+              style={{ 
+                letterSpacing: '0.8rem', 
+                textAlign: 'center', 
+                fontSize: '1.8rem', 
+                fontWeight: '900',
+                paddingLeft: '14px' // Reset padding for centered code
+              }}
             />
           </div>
-          <button type="submit" className="primary-btn-large" disabled={isLoading} style={{ width: '100%' }}>
-            {isLoading ? 'Verifying...' : 'Verify Email'}
+
+          <button type="submit" disabled={isLoading} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginTop: '1.5rem' }}>
+            {isLoading ? 'VERIFYING...' : 'COMPLETE REGISTRATION'} <ArrowRight size={18} />
           </button>
         </form>
-        <div className="auth-footer" style={{ marginTop: '1rem', textAlign: 'center' }}>
-          <p>Didn't receive the code? <span onClick={handleResend} style={{ color: 'var(--primary-color)', cursor: 'pointer' }}>Resend</span></p>
+
+        <div className="form-footer-text" style={{ marginTop: '2rem' }}>
+          <p style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+            Didn't receive the code? 
+            <span 
+              onClick={handleResend} 
+              style={{ 
+                color: '#3b82f6', 
+                cursor: 'pointer', 
+                fontWeight: '800',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              <RefreshCw size={14} /> RESEND
+            </span>
+          </p>
         </div>
       </div>
     </div>

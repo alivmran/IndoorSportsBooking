@@ -225,4 +225,57 @@ router.post('/resend-verification', authLimiter, [
   }
 });
 
+// @desc    Get Current User Profile
+// @route   GET /api/users/profile
+// @access  Private
+router.get('/profile', require('../middleware/authMiddleware').protect, async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user._id).select('-password');
+    if (!user) {
+      res.status(404);
+      throw new Error('User not found');
+    }
+
+    // Recalculate stats for accuracy
+    const MatchPost = require('../models/MatchPost');
+    const Booking = require('../models/Booking');
+    
+    const today = new Date().toISOString().split('T')[0];
+    
+    // 1. Matches Played as Host (Past Approved Bookings)
+    const hostMatchesCount = await Booking.countDocuments({
+      user: req.user._id,
+      status: 'Approved',
+      date: { $lt: today }
+    });
+
+    // 2. Matches Played as Challenger (MatchPosts where they attended)
+    const challengerMatchesCount = await MatchPost.countDocuments({
+      challengerUser: req.user._id,
+      attendanceReported: true,
+      challengerAttended: { $ne: false } // Count true or undefined (legacy)
+    });
+
+    // 3. No-Shows as Challenger
+    const challengerNoShowsCount = await MatchPost.countDocuments({
+      challengerUser: req.user._id,
+      attendanceReported: true,
+      challengerAttended: false
+    });
+
+    const totalMatchesPlayed = hostMatchesCount + challengerMatchesCount;
+    
+    // Sync the User model if needed (optional but good for other queries)
+    if (user.matchesPlayed !== totalMatchesPlayed || user.noShows !== challengerNoShowsCount) {
+      user.matchesPlayed = totalMatchesPlayed;
+      user.noShows = challengerNoShowsCount;
+      await user.save();
+    }
+    
+    res.json(user);
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;
